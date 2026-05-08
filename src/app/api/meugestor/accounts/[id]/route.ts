@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCampaignsInsights, getDailyInsights, getActionValue, MetaDatePreset } from '@/lib/facebook';
+import {
+    getCampaignsInsights, getDailyInsights, getAdsetsInsights,
+    flattenInsight, healthScore,
+    presetToRange, previousRange, deltaPct,
+    MetaDatePreset, MetaTimeRange,
+} from '@/lib/facebook';
 
-const VALID_PRESETS: MetaDatePreset[] = ['today', 'yesterday', 'last_3d', 'last_7d', 'last_14d', 'last_28d', 'last_30d', 'this_month', 'last_month'];
+export const dynamic = 'force-dynamic';
+
+const VALID_PRESETS: MetaDatePreset[] = [
+    'today', 'yesterday',
+    'last_3d', 'last_7d', 'last_14d', 'last_28d', 'last_30d', 'last_90d',
+    'this_month', 'last_month', 'this_quarter', 'last_quarter', 'this_year', 'last_year',
+];
 
 export async function GET(
     request: NextRequest,
@@ -15,55 +26,60 @@ export async function GET(
         }
 
         const { searchParams } = new URL(request.url);
-        const datePreset = (searchParams.get('period') || 'last_7d') as MetaDatePreset;
-        if (!VALID_PRESETS.includes(datePreset)) {
-            return NextResponse.json({ success: false, error: 'Período inválido' }, { status: 400 });
-        }
+        const preset = (searchParams.get('period') || 'last_7d') as MetaDatePreset;
+        const since = searchParams.get('since');
+        const until = searchParams.get('until');
+        const compare = searchParams.get('compare') !== 'false';
 
+        let range: MetaTimeRange;
+        if (since && until) range = { since, until };
+        else {
+            if (!VALID_PRESETS.includes(preset))
+                return NextResponse.json({ success: false, error: 'Período inválido' }, { status: 400 });
+            range = presetToRange(preset);
+        }
+        const prev = compare ? previousRange(range) : null;
         const accountId = id.startsWith('act_') ? id : `act_${id}`;
 
-        // Buscar campanhas e insights diários em paralelo
-        const [campaigns, daily] = await Promise.all([
-            getCampaignsInsights(accountId, accessToken, datePreset),
-            getDailyInsights(accountId, accessToken, datePreset),
+        const [campaignsRaw, campaignsPrev, dailyRaw, adsetsRaw] = await Promise.all([
+            getCampaignsInsights(accountId, accessToken, undefined, range),
+            prev ? getCampaignsInsights(accountId, accessToken, undefined, prev) : Promise.resolve([]),
+            getDailyInsights(accountId, accessToken, undefined, range),
+            getAdsetsInsights(accountId, accessToken, undefined, range).catch(() => []),
         ]);
 
-        // Formatar campanhas
-        const formattedCampaigns = campaigns.map(c => ({
-            campaign_id: c.campaign_id,
-            campaign_name: c.campaign_name,
-            spend: Number(c.spend || 0),
-            impressions: Number(c.impressions || 0),
-            clicks: Number(c.clicks || 0),
-            ctr: Number(c.ctr || 0),
-            cpc: Number(c.cpc || 0),
-            reach: Number(c.reach || 0),
-            frequency: Number(c.frequency || 0),
-            leads: getActionValue(c.actions, 'lead'),
-            purchases: getActionValue(c.actions, 'purchase'),
-            messaging: getActionValue(c.actions, 'onsite_conversion.messaging_conversation_started_7d'),
-        }));
+        const prevByCampaign: Record<string, any> = {};
+        for (const r of campaignsPrev || []) {
+            if (r.campaign_id) prevByCampaign[r.campaign_id] = flattenInsight(r);
+        }
 
-        // Formatar insights diários
-        const formattedDaily = daily.map(d => ({
-            date: d.date_start,
-            spend: Number(d.spend || 0),
-            impressions: Number(d.impressions || 0),
-            clicks: Number(d.clicks || 0),
-            reach: Number(d.reach || 0),
-            leads: getActionValue(d.actions, 'lead'),
-            messaging: getActionValue(d.actions, 'onsite_conversion.messaging_conversation_started_7d'),
-        }));
+        const campaigns = campaignsRaw.map(c => {
+            const flat = flattenInsight(c);
+            const flatPrev = prevByCampaign[c.campaign_id || ''];
+            const health = healthScore(flat);
+            const deltas = flatPrev ? {
+                spend: deltaPct(flat.spend, flatPrev.spend),
+                ctr: deltaPct(flat.ctr, flatPrev.ctr),
+                cpc: deltaPct(flat.cpc, flatPrev.cpc),
+                cpm: deltaPct(flat.cpm, flatPrev.cpm),
+                leads: deltaPct(flat.leads, flatPrev.leads),
+                cpl: deltaPct(flat.cpl, flatPrev.cpl),
+                roas: deltaPct(flat.roas, flatPrev.roas),
+                messaging_started: deltaPct(flat.messaging_started, flatPrev.messaging_started),
+            } : null;
+            return { ...flat, deltas, health: health.score, health_reasons: health.reasons };
+        });
+        campaigns.sort((a, b) => b.spend - a.spend);
 
-        // Ordenar campanhas por spend
-        formattedCampaigns.sort((a, b) => b.spend - a.spend);
+        const adsets = adsetsRaw.map(a => flattenInsight(a))
+            .sort((a, b) => b.spend - a.spend);
+
+        const daily = dailyRaw.map(d => flattenInsight(d));
 
         return NextResponse.json({
             success: true,
-            data: {
-                campaigns: formattedCampaigns,
-                daily: formattedDaily,
-            }
+            data: { campaigns, adsets, daily },
+            period: { preset, range, previous: prev },
         });
     } catch (error: any) {
         return NextResponse.json(

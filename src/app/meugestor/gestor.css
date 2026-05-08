@@ -60,6 +60,10 @@
 @keyframes g-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 .g-pulse { animation: g-pulse 2s ease-in-out infinite; }
 
+/* extras v3 */
+.gestor-root input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer; }
+.gestor-root kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
 @media print {
   .gestor-root { background: white !important; color: black !important; }
   .g-glass { background: white !important; border: 1px solid #e5e7eb !important; backdrop-filter: none !important; }
