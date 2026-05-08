@@ -16,8 +16,8 @@ import { load, save, KEYS } from "./lib/storage";
 import { PRESETS } from "./lib/metrics";
 import { formatCurrency, formatNumber, formatPct } from "./lib/format";
 
-import KpiCard from "./components/KpiCard";
-import HealthBadge from "./components/HealthBadge";
+import KpiGrid from "./components/KpiGrid";
+import KpiPicker from "./components/KpiPicker";
 import MetricsPicker from "./components/MetricsPicker";
 import DateRangePicker, { DateRangeValue } from "./components/DateRangePicker";
 import BudgetPacing from "./components/BudgetPacing";
@@ -28,6 +28,7 @@ import ClientReport from "./components/ClientReport";
 import CmdK, { CmdItem } from "./components/CmdK";
 import InsightsTable from "./components/InsightsTable";
 import SmartInsights from "./components/SmartInsights";
+import { DEFAULT_KPIS, KpiCtx, aggregateRow } from "./lib/kpis";
 
 // ─────────────────────────────────────────────────────────────
 // PAGES (sidebar)
@@ -81,8 +82,15 @@ export default function MeuGestorDashboard() {
     const [campaignMetrics, setCampaignMetrics] = useState<string[]>(DEFAULT_CAMPAIGN_METRICS);
     const [adMetrics, setAdMetrics] = useState<string[]>(DEFAULT_AD_METRICS);
 
+    // KPIs editáveis por contexto (dashboard, account, campaign, ad)
+    const [dashboardKpis, setDashboardKpis] = useState<string[]>(DEFAULT_KPIS.dashboard);
+    const [accountKpis, setAccountKpis] = useState<string[]>(DEFAULT_KPIS.account);
+    const [campaignKpis, setCampaignKpis] = useState<string[]>(DEFAULT_KPIS.campaign);
+    const [adKpis, setAdKpis] = useState<string[]>(DEFAULT_KPIS.ad);
+
     // Modais
     const [pickerOpen, setPickerOpen] = useState<null | "account" | "campaign" | "ad">(null);
+    const [kpiPickerOpen, setKpiPickerOpen] = useState<null | KpiCtx>(null);
     const [cmdkOpen, setCmdkOpen] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -92,6 +100,10 @@ export default function MeuGestorDashboard() {
         setAccountMetrics(load(KEYS.metricsByLevel + ":account", DEFAULT_ACCOUNT_METRICS));
         setCampaignMetrics(load(KEYS.metricsByLevel + ":campaign", DEFAULT_CAMPAIGN_METRICS));
         setAdMetrics(load(KEYS.metricsByLevel + ":ad", DEFAULT_AD_METRICS));
+        setDashboardKpis(load("kpis:dashboard", DEFAULT_KPIS.dashboard));
+        setAccountKpis(load("kpis:account", DEFAULT_KPIS.account));
+        setCampaignKpis(load("kpis:campaign", DEFAULT_KPIS.campaign));
+        setAdKpis(load("kpis:ad", DEFAULT_KPIS.ad));
         setPeriod(load(KEYS.period, { preset: "last_7d" }));
         setCompare(load(KEYS.compare, true));
         setOnlyFavorites(load(KEYS.onlyFavorites, false));
@@ -102,6 +114,10 @@ export default function MeuGestorDashboard() {
     useEffect(() => save(KEYS.metricsByLevel + ":account", accountMetrics), [accountMetrics]);
     useEffect(() => save(KEYS.metricsByLevel + ":campaign", campaignMetrics), [campaignMetrics]);
     useEffect(() => save(KEYS.metricsByLevel + ":ad", adMetrics), [adMetrics]);
+    useEffect(() => save("kpis:dashboard", dashboardKpis), [dashboardKpis]);
+    useEffect(() => save("kpis:account", accountKpis), [accountKpis]);
+    useEffect(() => save("kpis:campaign", campaignKpis), [campaignKpis]);
+    useEffect(() => save("kpis:ad", adKpis), [adKpis]);
     useEffect(() => save(KEYS.period, period), [period]);
     useEffect(() => save(KEYS.compare, compare), [compare]);
     useEffect(() => save(KEYS.onlyFavorites, onlyFavorites), [onlyFavorites]);
@@ -280,6 +296,9 @@ export default function MeuGestorDashboard() {
 
     const selectedAccount = useMemo(() => accounts.find(a => a.id === selectedAccountId), [accounts, selectedAccountId]);
 
+    // Linha sintética para KPIs do dashboard (totais agregados, com deltas calculados a partir do previous de cada conta)
+    const dashboardAggRow = useMemo(() => aggregateRow(visibleAccounts), [visibleAccounts]);
+
     const cmdItems: CmdItem[] = useMemo(() => {
         const items: CmdItem[] = [];
         for (const a of accounts) {
@@ -443,15 +462,8 @@ export default function MeuGestorDashboard() {
                     {/* ========== DASHBOARD / FAVORITES ========== */}
                     {!selectedAccountId && (currentPage === "dashboard" || currentPage === "favorites") && (
                         <div className="g-fade-in" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-                            {/* KPIs */}
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0.85rem" }}>
-                                <KpiCard title="Investimento" value={formatCurrency(totals.ts)} sub={`${visibleAccounts.length} contas`} icon={<DollarSign style={{ width: 18, height: 18 }} />} delta={totals.dSpend} color="blue" tooltip="Valor total gasto no período (com comparativo)" />
-                                <KpiCard title="Cliques" value={formatNumber(totals.tc)} sub={`CPC ${formatCurrency(totals.cpc)}`} icon={<MousePointerClick style={{ width: 18, height: 18 }} />} color="yellow" tooltip="Cliques totais — inclui qualquer interação" />
-                                <KpiCard title="CTR Médio" value={formatPct(totals.ctr)} sub={`${formatNumber(totals.ti)} impressões`} icon={<Target style={{ width: 18, height: 18 }} />} color="green" tooltip="Taxa de clique agregada" />
-                                <KpiCard title="Leads" value={formatNumber(totals.tl)} sub={`CPL ${formatCurrency(totals.cpl)}`} icon={<Users style={{ width: 18, height: 18 }} />} delta={totals.dLeads} color="green" tooltip="Volume de leads e custo por lead" />
-                                <KpiCard title="Conversas WhatsApp" value={formatNumber(totals.tm)} sub="Click-to-Message" icon={<Activity style={{ width: 18, height: 18 }} />} color="purple" tooltip="Conversas iniciadas via Meta Ads" />
-                                <KpiCard title="Receita / ROAS" value={`${totals.roas.toFixed(2)}x`} sub={`${formatCurrency(totals.tv)} de receita · ${totals.tp} compras`} icon={<Wallet style={{ width: 18, height: 18 }} />} color="blue" tooltip="ROAS = receita / spend" />
-                            </div>
+                            {/* KPIs editáveis (dashboard agregado) */}
+                            <KpiGrid ctx="dashboard" row={dashboardAggRow} selected={dashboardKpis} onOpenPicker={() => setKpiPickerOpen("dashboard")} />
 
                             {/* Filtros + tabela de contas */}
                             <div className="g-glass" style={{ overflow: "hidden" }}>
@@ -506,25 +518,8 @@ export default function MeuGestorDashboard() {
                     {/* ========== ACCOUNT DETAIL ========== */}
                     {selectedAccountId && selectedAccount && !selectedCampaignId && !selectedAdId && (
                         <div className="g-fade-in" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-                            {/* KPIs da conta */}
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.75rem" }}>
-                                <KpiCard title="Investimento" value={formatCurrency(selectedAccount.spend)} delta={selectedAccount.deltas?.spend} icon={<DollarSign style={{ width: 16, height: 16 }} />} color="blue" />
-                                <KpiCard title="CTR Link" value={formatPct(selectedAccount.inline_link_click_ctr || selectedAccount.ctr)} delta={selectedAccount.deltas?.ctr} icon={<Target style={{ width: 16, height: 16 }} />} color="green" />
-                                <KpiCard title="CPC Link" value={formatCurrency(selectedAccount.cost_per_inline_link_click || selectedAccount.cpc)} delta={selectedAccount.deltas?.cpc} deltaInverse icon={<DollarSign style={{ width: 16, height: 16 }} />} color="yellow" />
-                                <KpiCard title="CPM" value={formatCurrency(selectedAccount.cpm)} delta={selectedAccount.deltas?.cpm} deltaInverse icon={<Eye style={{ width: 16, height: 16 }} />} color="yellow" />
-                                <KpiCard title="Leads" value={formatNumber(selectedAccount.leads)} sub={`CPL ${formatCurrency(selectedAccount.cpl)}`} delta={selectedAccount.deltas?.leads} icon={<Users style={{ width: 16, height: 16 }} />} color="green" />
-                                <KpiCard title="Conversas WhatsApp" value={formatNumber(selectedAccount.messaging_started)} sub={`Custo ${formatCurrency(selectedAccount.cpa_messaging)}`} delta={selectedAccount.deltas?.messaging_started} icon={<Activity style={{ width: 16, height: 16 }} />} color="purple" />
-                                {selectedAccount.purchases > 0 && (
-                                    <KpiCard title="ROAS" value={`${selectedAccount.roas.toFixed(2)}x`} sub={`${formatCurrency(selectedAccount.purchase_value)} receita`} delta={selectedAccount.deltas?.roas} icon={<Wallet style={{ width: 16, height: 16 }} />} color="blue" />
-                                )}
-                                <div className="g-glass" style={{ padding: "1rem", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                                    <p style={{ fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.45)", fontWeight: 600 }}>Saúde</p>
-                                    <HealthBadge score={selectedAccount.health} reasons={selectedAccount.health_reasons} size="md" />
-                                    <p style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.4)", marginTop: 6 }}>
-                                        Quality {selectedAccount.quality_ranking || "—"}
-                                    </p>
-                                </div>
-                            </div>
+                            {/* KPIs editáveis da conta */}
+                            <KpiGrid ctx="account" row={selectedAccount} selected={accountKpis} onOpenPicker={() => setKpiPickerOpen("account")} />
 
                             {/* Pacing + Cliente Report */}
                             {accountDetail?.daily && accountDetail.daily.length > 0 && (
@@ -578,7 +573,7 @@ export default function MeuGestorDashboard() {
                                     )}
 
                                     {/* Breakdowns */}
-                                    <BreakdownsPanel accountId={selectedAccountId} period={period} />
+                                    <BreakdownsPanel objectId={selectedAccountId} level="account" period={period} />
 
                                     {/* Tabela de campanhas */}
                                     <div className="g-glass" style={{ overflow: "hidden" }}>
@@ -613,12 +608,20 @@ export default function MeuGestorDashboard() {
                     {/* ========== CAMPAIGN DETAIL ========== */}
                     {selectedAccountId && selectedCampaignId && !selectedAdId && (
                         <div className="g-fade-in" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                            {/* KPIs editáveis da campanha (busca o row da campanha em accountDetail) */}
+                            {(() => {
+                                const camp = accountDetail?.campaigns.find((c: any) => c.campaign_id === selectedCampaignId);
+                                if (!camp) return null;
+                                return <KpiGrid ctx="campaign" row={camp} selected={campaignKpis} onOpenPicker={() => setKpiPickerOpen("campaign")} />;
+                            })()}
                             {loadingCampaign ? (
                                 <div style={{ display: "flex", justifyContent: "center", padding: "3rem" }}>
                                     <Loader2 className="g-pulse" style={{ width: 28, height: 28, color: "rgba(255,255,255,0.3)" }} />
                                 </div>
                             ) : campaignDetail && (
                                 <>
+                                    {/* Breakdowns da campanha */}
+                                    <BreakdownsPanel objectId={selectedCampaignId} level="campaign" period={period} />
                                     {campaignDetail.daily.length > 0 && (
                                         <div className="g-glass" style={{ padding: "1.1rem" }}>
                                             <h4 style={{ fontSize: "0.85rem", fontWeight: 700, color: "white", marginBottom: "0.65rem" }}>Performance Diária da Campanha</h4>
@@ -672,20 +675,10 @@ export default function MeuGestorDashboard() {
                                 const ad = campaignDetail?.ads.find((a: any) => a.ad_id === selectedAdId);
                                 if (!ad) return null;
                                 return (
-                                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "0.75rem" }}>
-                                        <KpiCard title="Investimento" value={formatCurrency(ad.spend)} delta={ad.deltas?.spend} color="blue" />
-                                        <KpiCard title="CTR" value={formatPct(ad.ctr)} delta={ad.deltas?.ctr} color="green" />
-                                        <KpiCard title="CPC" value={formatCurrency(ad.cpc)} delta={ad.deltas?.cpc} deltaInverse color="yellow" />
-                                        <KpiCard title="Hook Rate" value={formatPct(ad.hook_rate)} delta={ad.deltas?.hook_rate} color="purple" tooltip="Views 3s / impressões — força do início do criativo" />
-                                        <KpiCard title="Hold Rate" value={formatPct(ad.hold_rate)} color="purple" tooltip="Views 100% / Views 3s — retenção" />
-                                        <KpiCard title="Frequência" value={ad.frequency.toFixed(2)} color="yellow" tooltip="Quanto cada pessoa viu este anúncio" />
-                                        <KpiCard title="Leads" value={formatNumber(ad.leads)} sub={ad.cpl > 0 ? `CPL ${formatCurrency(ad.cpl)}` : ""} delta={ad.deltas?.leads} color="green" />
-                                        <div className="g-glass" style={{ padding: "1rem", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                                            <p style={{ fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.45)", fontWeight: 600 }}>Saúde</p>
-                                            <HealthBadge score={ad.health} reasons={ad.health_reasons} size="md" />
-                                            <p style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.4)", marginTop: 6 }}>Q:{ad.quality_ranking || "—"} · E:{ad.engagement_rate_ranking || "—"}</p>
-                                        </div>
-                                    </div>
+                                    <>
+                                        <KpiGrid ctx="ad" row={ad} selected={adKpis} onOpenPicker={() => setKpiPickerOpen("ad")} />
+                                        <BreakdownsPanel objectId={selectedAdId} level="ad" period={period} />
+                                    </>
                                 );
                             })()}
                         </div>
@@ -724,6 +717,23 @@ export default function MeuGestorDashboard() {
                     else if (pickerOpen === "ad") setAdMetrics(keys);
                 }}
                 title={`Métricas — ${pickerOpen === "account" ? "Contas" : pickerOpen === "campaign" ? "Campanhas" : "Anúncios"}`}
+            />
+            <KpiPicker
+                open={!!kpiPickerOpen}
+                onClose={() => setKpiPickerOpen(null)}
+                ctx={(kpiPickerOpen || "dashboard") as KpiCtx}
+                selected={
+                    kpiPickerOpen === "dashboard" ? dashboardKpis :
+                    kpiPickerOpen === "account" ? accountKpis :
+                    kpiPickerOpen === "campaign" ? campaignKpis : adKpis
+                }
+                onChange={(keys) => {
+                    if (kpiPickerOpen === "dashboard") setDashboardKpis(keys);
+                    else if (kpiPickerOpen === "account") setAccountKpis(keys);
+                    else if (kpiPickerOpen === "campaign") setCampaignKpis(keys);
+                    else if (kpiPickerOpen === "ad") setAdKpis(keys);
+                }}
+                title={`KPIs — ${kpiPickerOpen === "dashboard" ? "Painel Geral" : kpiPickerOpen === "account" ? "Conta" : kpiPickerOpen === "campaign" ? "Campanha" : "Anúncio"}`}
             />
             <CmdK items={cmdItems} open={cmdkOpen} onClose={() => setCmdkOpen(false)} />
         </div>

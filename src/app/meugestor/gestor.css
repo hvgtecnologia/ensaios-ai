@@ -76,6 +76,28 @@
 .gestor-root kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
 @media print {
-  .gestor-root { background: white !important; color: black !important; }
-  .g-glass { background: white !important; border: 1px solid #e5e7eb !important; backdrop-filter: none !important; }
+  @page { size: A4 portrait; margin: 14mm 12mm; }
+  body, html { background: white !important; }
+  .gestor-root { background: white !important; color: #111 !important; }
+  .gestor-root aside, .gestor-root header, .g-loadbar { display: none !important; }
+  .gestor-root main { margin-left: 0 !important; padding: 0 !important; }
+  .g-glass { background: #fff !important; border: 1px solid #e5e7eb !important; backdrop-filter: none !important; box-shadow: none !important; page-break-inside: avoid; }
+  .g-metric { padding: 0.75rem !important; }
+  .g-metric::before { display: none !important; }
+  .g-fade-in { animation: none !important; }
+  /* Texto preto */
+  .gestor-root *, .gestor-root *::before, .gestor-root *::after { color: #111 !important; text-shadow: none !important; }
+  /* Manter cores nos badges/deltas/health */
+  .g-badge, .g-badge *, [data-keep-color], [data-keep-color] * { color: inherit !important; }
+  /* Cards: bordas sutis pra parecer relatório */
+  .g-glass-hover:hover { transform: none !important; box-shadow: none !important; }
+  /* Ocultar botões interativos do print */
+  button, .g-btn-primary, .g-btn-secondary, [data-print-hide] { display: none !important; }
+  /* Tabelas: respeitar quebra */
+  table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; page-break-after: auto; }
+  thead { display: table-header-group; }
+  /* Force readable text on charts */
+  .recharts-text { fill: #444 !important; }
+  .recharts-cartesian-grid line { stroke: #e5e7eb !important; }
 }

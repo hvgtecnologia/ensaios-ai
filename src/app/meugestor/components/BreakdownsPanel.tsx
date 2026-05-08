@@ -28,11 +28,13 @@ const METRICS = [
 ];
 
 interface Props {
-    accountId: string;
+    objectId: string;
+    level?: "account" | "campaign" | "ad";
     period: { preset?: string; since?: string; until?: string };
 }
 
-export default function BreakdownsPanel({ accountId, period }: Props) {
+export default function BreakdownsPanel({ objectId, level = "account", period }: Props) {
+    const accountId = objectId; // mantém variável legada do componente
     const [dim, setDim] = useState<string>("age,gender");
     const [metric, setMetric] = useState("spend");
     const [data, setData] = useState<any[]>([]);
@@ -70,7 +72,9 @@ export default function BreakdownsPanel({ accountId, period }: Props) {
         <div className="g-glass" style={{ padding: "1.25rem" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem", flexWrap: "wrap" }}>
                 <Layers style={{ width: 16, height: 16, color: "#a78bfa" }} />
-                <h4 style={{ fontSize: "0.85rem", fontWeight: 700, color: "white" }}>Análise por Segmento</h4>
+                <h4 style={{ fontSize: "0.85rem", fontWeight: 700, color: "white" }}>
+                    Análise por Segmento {level !== "account" && <span style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.4)", fontWeight: 500, marginLeft: 4 }}>({level === "campaign" ? "campanha" : "anúncio"})</span>}
+                </h4>
                 <div style={{ marginLeft: "auto", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                     <select value={dim} onChange={e => setDim(e.target.value)}
                         style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "0.35rem 0.6rem", color: "white", fontSize: "0.75rem" }}>

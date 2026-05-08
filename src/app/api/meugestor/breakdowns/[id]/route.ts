@@ -37,8 +37,10 @@ export async function GET(
         if (since && until) range = { since, until };
         else range = presetToRange(preset);
 
-        const accountId = id.startsWith('act_') ? id : `act_${id}`;
-        const raw = await getBreakdownInsights(accountId, accessToken, dim, undefined, range);
+        // Aceita qualquer level: act_xxx (account), campaign_id, adset_id ou ad_id.
+        // Frontend envia o id correto; sem forçar prefixo aqui.
+        const objectId = id;
+        const raw = await getBreakdownInsights(objectId, accessToken, dim, undefined, range);
 
         const rows = raw.map(r => {
             const flat = flattenInsight(r);
