@@ -44,7 +44,9 @@ export async function GET(request: NextRequest) {
             a => a.account_status === 1 || (a.account_status === 3 && Number(a.amount_spent) > 0)
         );
 
-        const batchSize = 8;
+        // Paralelismo agressivo: Meta aceita ~25 req simultâneas em conta token user.
+        // Para 15-20 contas, isso vira 1 batch único = ~3-4s vs ~12s antes.
+        const batchSize = 25;
         const enriched: any[] = [];
 
         for (let i = 0; i < activeAccounts.length; i += batchSize) {

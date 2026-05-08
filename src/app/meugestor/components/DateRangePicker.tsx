@@ -38,6 +38,12 @@ export default function DateRangePicker({ value, onChange, compare, onCompareCha
     const [until, setUntil] = useState(value.until || "");
     const ref = useRef<HTMLDivElement>(null);
 
+    // ressincroniza inputs quando value muda externamente (ex: hidratado do localStorage)
+    useEffect(() => {
+        setSince(value.since || "");
+        setUntil(value.until || "");
+    }, [value.since, value.until]);
+
     useEffect(() => {
         const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
         document.addEventListener("mousedown", onDoc);
@@ -54,10 +60,16 @@ export default function DateRangePicker({ value, onChange, compare, onCompareCha
         setOpen(false);
     };
     const applyCustom = () => {
-        if (since && until) {
-            onChange({ since, until });
-            setOpen(false);
+        if (!since || !until) {
+            alert("Preencha as duas datas (de / até).");
+            return;
         }
+        if (since > until) {
+            alert("Data inicial deve ser menor ou igual à final.");
+            return;
+        }
+        onChange({ since, until });
+        setOpen(false);
     };
 
     return (

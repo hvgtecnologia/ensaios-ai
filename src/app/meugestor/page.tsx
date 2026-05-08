@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
     BarChart3, LayoutDashboard, Lightbulb, Star, Users, DollarSign,
     MousePointerClick, Target, ChevronLeft,
@@ -128,26 +128,36 @@ export default function MeuGestorDashboard() {
         return p;
     }, [period, compare]);
 
+    const accountsAbortRef = useRef<AbortController | null>(null);
     const fetchAccounts = useCallback(async () => {
+        accountsAbortRef.current?.abort();
+        const ctrl = new AbortController();
+        accountsAbortRef.current = ctrl;
         setLoading(true); setError(null);
         try {
-            const res = await fetch(`/api/meugestor/accounts?${buildPeriodParams().toString()}`);
+            const res = await fetch(`/api/meugestor/accounts?${buildPeriodParams().toString()}`, { signal: ctrl.signal });
             const json = await res.json();
             if (!json.success) throw new Error(json.error || "Erro ao buscar contas");
             setAccounts(json.data);
             setPeriodMeta(json.period);
         } catch (e: any) {
-            setError(e.message);
-        } finally { setLoading(false); }
+            if (e.name !== "AbortError") setError(e.message);
+        } finally {
+            if (accountsAbortRef.current === ctrl) setLoading(false);
+        }
     }, [buildPeriodParams]);
 
     useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
 
     // ── Fetch detalhe ──
+    const detailAbortRef = useRef<AbortController | null>(null);
     const fetchAccountDetail = useCallback(async (id: string) => {
+        detailAbortRef.current?.abort();
+        const ctrl = new AbortController();
+        detailAbortRef.current = ctrl;
         setLoadingDetail(true);
         try {
-            const res = await fetch(`/api/meugestor/accounts/${id}?${buildPeriodParams().toString()}`);
+            const res = await fetch(`/api/meugestor/accounts/${id}?${buildPeriodParams().toString()}`, { signal: ctrl.signal });
             const json = await res.json();
             if (json.success) {
                 const daily = (json.data.daily || []).map((d: any) => {
@@ -156,13 +166,21 @@ export default function MeuGestorDashboard() {
                 });
                 setAccountDetail({ campaigns: json.data.campaigns, daily, adsets: json.data.adsets });
             }
-        } finally { setLoadingDetail(false); }
+        } catch (e: any) {
+            if (e.name !== "AbortError") console.error(e);
+        } finally {
+            if (detailAbortRef.current === ctrl) setLoadingDetail(false);
+        }
     }, [buildPeriodParams]);
 
+    const campaignAbortRef = useRef<AbortController | null>(null);
     const fetchCampaignDetail = useCallback(async (id: string) => {
+        campaignAbortRef.current?.abort();
+        const ctrl = new AbortController();
+        campaignAbortRef.current = ctrl;
         setLoadingCampaign(true);
         try {
-            const res = await fetch(`/api/meugestor/campaigns/${id}?${buildPeriodParams().toString()}`);
+            const res = await fetch(`/api/meugestor/campaigns/${id}?${buildPeriodParams().toString()}`, { signal: ctrl.signal });
             const json = await res.json();
             if (json.success) {
                 const daily = (json.data.daily || []).map((d: any) => {
@@ -171,7 +189,11 @@ export default function MeuGestorDashboard() {
                 });
                 setCampaignDetail({ ads: json.data.ads, daily });
             }
-        } finally { setLoadingCampaign(false); }
+        } catch (e: any) {
+            if (e.name !== "AbortError") console.error(e);
+        } finally {
+            if (campaignAbortRef.current === ctrl) setLoadingCampaign(false);
+        }
     }, [buildPeriodParams]);
 
     // re-busca detalhes ao mudar período
@@ -317,8 +339,11 @@ export default function MeuGestorDashboard() {
     }
 
     // ── Render ──
+    const anyLoading = loading || loadingDetail || loadingCampaign;
+
     return (
         <div style={{ minHeight: "100vh" }}>
+            {anyLoading && <div className="g-loadbar" />}
             {/* SIDEBAR */}
             <aside style={{
                 position: "fixed", left: 0, top: 0, bottom: 0, width: sidebarOpen ? 240 : 72, zIndex: 50,
@@ -401,8 +426,15 @@ export default function MeuGestorDashboard() {
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                         <DateRangePicker value={period} onChange={setPeriod} compare={compare} onCompareChange={setCompare} />
                         <ExportMenu period={period} accounts={onlyFavorites || currentPage === "favorites" ? Array.from(favorites) : undefined} />
-                        <button onClick={fetchAccounts} className="g-btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 0.75rem", fontSize: "0.75rem" }}>
-                            <RefreshCw style={{ width: 13, height: 13 }} /> Atualizar
+                        <button onClick={fetchAccounts} disabled={loading} className="g-btn-secondary"
+                            style={{
+                                display: "inline-flex", alignItems: "center", gap: "0.4rem",
+                                padding: "0.5rem 0.75rem", fontSize: "0.75rem",
+                                opacity: loading ? 0.7 : 1, cursor: loading ? "wait" : "pointer",
+                                borderColor: loading ? "rgba(76,110,245,0.55)" : undefined,
+                            }}>
+                            <RefreshCw style={{ width: 13, height: 13, animation: loading ? "spin 1s linear infinite" : "none" }} />
+                            {loading ? "Atualizando..." : "Atualizar"}
                         </button>
                     </div>
                 </header>

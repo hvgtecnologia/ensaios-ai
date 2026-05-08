@@ -60,6 +60,17 @@
 @keyframes g-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 .g-pulse { animation: g-pulse 2s ease-in-out infinite; }
 
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes g-loadbar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.g-loadbar {
+  position: fixed; top: 0; left: 0; right: 0; height: 2px; z-index: 100;
+  background: linear-gradient(90deg, transparent, #4c6ef5 40%, #a78bfa 60%, transparent);
+  animation: g-loadbar 1.1s ease-in-out infinite;
+}
+
 /* extras v3 */
 .gestor-root input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer; }
 .gestor-root kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
