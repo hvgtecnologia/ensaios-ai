@@ -36,7 +36,7 @@ export default function BudgetPacing({ daily, monthlyTarget }: Props) {
                 <TrendingUp style={{ width: 16, height: 16, color: "#748ffc" }} />
                 <h4 style={{ fontSize: "0.85rem", fontWeight: 700, color: "white" }}>Pacing de Orçamento</h4>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
+            <div className="g-grid-3col">
                 <div>
                     <p style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.45)" }}>Gasto Realizado</p>
                     <p style={{ fontSize: "1.05rem", color: "white", fontWeight: 700, marginTop: 4 }}>{formatCurrency(totalSpent)}</p>

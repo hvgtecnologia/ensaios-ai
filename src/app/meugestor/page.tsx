@@ -110,7 +110,9 @@ export default function MeuGestorDashboard() {
         setPeriod(load(KEYS.period, { preset: "last_7d" }));
         setCompare(load(KEYS.compare, true));
         setOnlyFavorites(load(KEYS.onlyFavorites, false));
-        setSidebarOpen(load(KEYS.sidebarOpen, true));
+        const persisted = load(KEYS.sidebarOpen, true);
+        const isMobile = typeof window !== "undefined" && window.innerWidth < 769;
+        setSidebarOpen(isMobile ? false : persisted);
     }, []);
 
     useEffect(() => save(KEYS.favorites, Array.from(favorites)), [favorites]);
@@ -390,10 +392,11 @@ export default function MeuGestorDashboard() {
         <div style={{ minHeight: "100vh" }}>
             {anyLoading && <div className="g-loadbar" />}
             {/* SIDEBAR */}
-            <aside style={{
+            {sidebarOpen && <div className="g-sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
+            <aside className={`g-sidebar ${sidebarOpen ? "is-open" : ""}`} style={{
                 position: "fixed", left: 0, top: 0, bottom: 0, width: sidebarOpen ? 240 : 72, zIndex: 50,
                 background: "rgba(10,12,28,0.95)", borderRight: "1px solid var(--glass-border)",
-                backdropFilter: "blur(20px)", display: "flex", flexDirection: "column", transition: "width 0.3s ease",
+                backdropFilter: "blur(20px)", display: "flex", flexDirection: "column", transition: "width 0.3s ease, transform 0.25s ease",
             }}>
                 <div style={{ height: 72, display: "flex", alignItems: "center", justifyContent: sidebarOpen ? "space-between" : "center", padding: sidebarOpen ? "0 1.25rem" : "0", borderBottom: "1px solid var(--glass-border)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
@@ -412,7 +415,7 @@ export default function MeuGestorDashboard() {
                         const Icon = p.icon;
                         const active = currentPage === p.id;
                         return (
-                            <button key={p.id} onClick={() => { setCurrentPage(p.id); setSelectedAccountId(null); setSelectedCampaignId(null); }}
+                            <button key={p.id} onClick={() => { setCurrentPage(p.id); setSelectedAccountId(null); setSelectedCampaignId(null); if (typeof window !== "undefined" && window.innerWidth < 769) setSidebarOpen(false); }}
                                 className={`g-sidebar-link ${active ? "active" : ""}`}
                                 style={{ justifyContent: sidebarOpen ? "flex-start" : "center", padding: sidebarOpen ? "0.6rem 0.85rem" : "0.6rem", fontSize: "0.82rem" }}>
                                 <Icon style={{ width: 18, height: 18 }} />
@@ -434,10 +437,10 @@ export default function MeuGestorDashboard() {
             </aside>
 
             {/* MAIN */}
-            <main style={{ marginLeft: sidebarOpen ? 240 : 72, minHeight: "100vh", transition: "margin-left 0.3s ease" }}>
+            <main className="g-main" style={{ marginLeft: sidebarOpen ? 240 : 72, minHeight: "100vh", transition: "margin-left 0.3s ease" }}>
                 {/* TOPBAR */}
-                <header style={{
-                    position: "sticky", top: 0, zIndex: 40, height: 72,
+                <header className="g-header" style={{
+                    position: "sticky", top: 0, zIndex: 40, minHeight: 72,
                     display: "flex", alignItems: "center", justifyContent: "space-between",
                     padding: "0 1.5rem", background: "rgba(15,18,37,0.92)",
                     borderBottom: "1px solid var(--glass-border)", backdropFilter: "blur(20px)",
@@ -484,7 +487,7 @@ export default function MeuGestorDashboard() {
                     </div>
                 </header>
 
-                <div style={{ padding: "1.5rem" }}>
+                <div className="g-page-pad" style={{ padding: "1.5rem" }}>
                     {/* ========== DASHBOARD / FAVORITES ========== */}
                     {!selectedAccountId && (currentPage === "dashboard" || currentPage === "favorites") && (
                         <div className="g-fade-in" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
@@ -619,7 +622,7 @@ export default function MeuGestorDashboard() {
 
                             {/* Pacing + Cliente Report */}
                             {accountDetail?.daily && accountDetail.daily.length > 0 && (
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.85rem" }}>
+                                <div className="g-grid-2col">
                                     <BudgetPacing daily={accountDetail.daily} />
                                     <ClientReport
                                         accountName={selectedAccount.name}
@@ -638,7 +641,7 @@ export default function MeuGestorDashboard() {
                                 <>
                                     {/* Charts */}
                                     {accountDetail.daily.length > 0 && (
-                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.85rem" }}>
+                                        <div className="g-grid-2col">
                                             <div className="g-glass" style={{ padding: "1.1rem" }}>
                                                 <h4 style={{ fontSize: "0.85rem", fontWeight: 700, color: "white", marginBottom: "0.65rem" }}>Investimento Diário</h4>
                                                 <ResponsiveContainer width="100%" height={220}>

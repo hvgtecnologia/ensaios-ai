@@ -92,7 +92,8 @@ export default function InsightsTable({
                     </button>
                 </div>
             )}
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+            <div className="g-table-scroll">
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem", minWidth: 720 }}>
                 <thead>
                     <tr style={{ background: "rgba(255,255,255,0.02)", borderBottom: "1px solid var(--glass-border)" }}>
                         {onToggleFavorite && <th style={{ width: 28, padding: "0.6rem 0.4rem" }}></th>}
@@ -188,6 +189,7 @@ export default function InsightsTable({
                     </tfoot>
                 )}
             </table>
+            </div>
         </div>
     );
 }

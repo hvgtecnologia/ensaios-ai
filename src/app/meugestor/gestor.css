@@ -75,6 +75,51 @@
 .gestor-root input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer; }
 .gestor-root kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
+/* Grids responsivos */
+.g-grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
+.g-grid-3col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
+.g-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* backdrop só visível em mobile */
+.g-sidebar-backdrop { display: none; }
+
+/* ─── Tablet ─── */
+@media (max-width: 1024px) {
+  .g-grid-2col { gap: 0.6rem; }
+}
+
+/* ─── Mobile ─── */
+@media (max-width: 768px) {
+  /* Sidebar vira overlay sobre o conteúdo */
+  .gestor-root .g-sidebar { transform: translateX(-100%); transition: transform 0.25s ease; box-shadow: 0 0 40px rgba(0,0,0,0.6); }
+  .gestor-root .g-sidebar.is-open { transform: translateX(0); width: min(80vw, 280px) !important; }
+  .gestor-root .g-main { margin-left: 0 !important; }
+  .gestor-root .g-sidebar-backdrop { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 49; }
+
+  /* Grids viram 1 coluna */
+  .g-grid-2col, .g-grid-3col { grid-template-columns: 1fr; }
+
+  /* Padding reduzido */
+  .gestor-root .g-page-pad { padding: 1rem 0.85rem !important; }
+  .gestor-root header.g-header { padding: 0 1rem !important; gap: 0.5rem !important; }
+  .gestor-root header.g-header > div { gap: 0.4rem !important; flex-wrap: wrap !important; }
+
+  /* Tabelas com scroll horizontal */
+  .g-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* KPI cards mais compactos */
+  .g-metric { padding: 0.85rem !important; }
+}
+
+/* ─── Phone pequeno ─── */
+@media (max-width: 480px) {
+  .gestor-root .g-page-pad { padding: 0.85rem 0.65rem !important; }
+  .gestor-root header.g-header { padding: 0 0.75rem !important; height: auto !important; min-height: 64px; padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+  .g-metric { padding: 0.7rem !important; }
+  /* botões header texto encurtado */
+  .g-header-btn-label { display: none; }
+}
+
 @media print {
   @page { size: A4 portrait; margin: 14mm 12mm; }
   body, html { background: white !important; }
