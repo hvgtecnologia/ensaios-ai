@@ -517,7 +517,7 @@ export async function getActiveAdsForAccount(
         'id', 'name', 'effective_status', 'status',
         'campaign_id', 'campaign{name}',
         'adset_id', 'adset{name}',
-        'creative{id,thumbnail_url,instagram_permalink_url,object_story_id,effective_object_story_id,preview_shareable_link}',
+        'creative{id,thumbnail_url,instagram_permalink_url,object_story_id,effective_object_story_id}',
     ].join(',');
     const filtering = encodeURIComponent(JSON.stringify([
         { field: 'effective_status', operator: 'IN', value: ['ACTIVE'] },
