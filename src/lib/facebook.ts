@@ -483,6 +483,67 @@ export async function getAdCreative(adId: string, accessToken: string): Promise<
 }
 
 // ─────────────────────────────────────────────────────────────
+// ACTIVE ADS (lista compartilhável: cada anúncio com link público)
+// ─────────────────────────────────────────────────────────────
+
+export interface ActiveAdLink {
+    ad_id: string;
+    ad_name: string;
+    effective_status: string;
+    campaign_id?: string;
+    campaign_name?: string;
+    adset_id?: string;
+    adset_name?: string;
+    thumbnail_url?: string;
+    instagram_permalink_url?: string;
+    facebook_permalink_url?: string;
+    preview_shareable_link?: string;
+}
+
+/** Constrói URL pública do post no FB a partir de "page_id_post_id" */
+function buildFbPermalink(objectStoryId?: string): string | undefined {
+    if (!objectStoryId) return undefined;
+    const m = String(objectStoryId).match(/^(\d+)_(\d+)$/);
+    if (!m) return undefined;
+    return `https://www.facebook.com/${m[1]}/posts/${m[2]}`;
+}
+
+export async function getActiveAdsForAccount(
+    adAccountId: string,
+    accessToken: string,
+): Promise<ActiveAdLink[]> {
+    const accountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
+    const fields = [
+        'id', 'name', 'effective_status', 'status',
+        'campaign_id', 'campaign{name}',
+        'adset_id', 'adset{name}',
+        'creative{id,thumbnail_url,instagram_permalink_url,object_story_id,effective_object_story_id,preview_shareable_link}',
+    ].join(',');
+    const filtering = encodeURIComponent(JSON.stringify([
+        { field: 'effective_status', operator: 'IN', value: ['ACTIVE'] },
+    ]));
+    const url = `${FB_GRAPH_URL}/${accountId}/ads?fields=${fields}&filtering=${filtering}&limit=200&access_token=${accessToken}`;
+    const ads = await fbPaginate<any>(url);
+    return ads.map(a => {
+        const c = a.creative || {};
+        const fbObjId = c.effective_object_story_id || c.object_story_id;
+        return {
+            ad_id: a.id,
+            ad_name: a.name,
+            effective_status: a.effective_status,
+            campaign_id: a.campaign_id,
+            campaign_name: a.campaign?.name,
+            adset_id: a.adset_id,
+            adset_name: a.adset?.name,
+            thumbnail_url: c.thumbnail_url,
+            instagram_permalink_url: c.instagram_permalink_url,
+            facebook_permalink_url: buildFbPermalink(fbObjId),
+            preview_shareable_link: c.preview_shareable_link,
+        };
+    });
+}
+
+// ─────────────────────────────────────────────────────────────
 // HELPERS DE EXTRAÇÃO
 // ─────────────────────────────────────────────────────────────
 

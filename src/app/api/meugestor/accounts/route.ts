@@ -85,23 +85,30 @@ export async function GET(request: NextRequest) {
                     const hasAnyAds = lifetimeBRL > 0 || hasAdsInPeriod;
 
                     const issues: string[] = [];
+                    const issue_categories: string[] = [];
                     if (account.account_status !== 1) {
                         issues.push(ACCOUNT_STATUS_LABEL[account.account_status] || `Status ${account.account_status}`);
+                        issue_categories.push('inactive');
                     }
                     if (account.disable_reason && account.disable_reason > 0) {
                         const r = DISABLE_REASON_LABEL[account.disable_reason];
                         if (r) issues.push(r);
+                        if (!issue_categories.includes('inactive')) issue_categories.push('inactive');
                     }
                     if (!hasAnyAds) {
                         issues.push('Sem anúncios veiculados');
+                        issue_categories.push('no_ads');
                     } else if (!hasAdsInPeriod && account.account_status === 1) {
                         issues.push('Sem veiculação no período');
+                        issue_categories.push('no_delivery');
                     }
                     if (account.is_prepay_account && Number(account.balance || 0) === 0 && hasAnyAds) {
                         issues.push('Saldo pré-pago zerado');
+                        if (!issue_categories.includes('payment')) issue_categories.push('payment');
                     }
                     if (!account.funding_source_details?.id && hasAnyAds) {
                         issues.push('Sem fonte de pagamento');
+                        if (!issue_categories.includes('payment')) issue_categories.push('payment');
                     }
 
                     return {
@@ -126,6 +133,7 @@ export async function GET(request: NextRequest) {
                         has_any_ads: hasAnyAds,
                         has_ads_in_period: hasAdsInPeriod,
                         issues,
+                        issue_categories,
                         previous: flatPrev,
                         deltas,
                         health: health.score,

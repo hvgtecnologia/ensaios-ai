@@ -24,6 +24,7 @@ import BudgetPacing from "./components/BudgetPacing";
 import BreakdownsPanel from "./components/BreakdownsPanel";
 import CreativePreview from "./components/CreativePreview";
 import ExportMenu from "./components/ExportMenu";
+import ActiveAdsList from "./components/ActiveAdsList";
 import ClientReport from "./components/ClientReport";
 import CmdK, { CmdItem } from "./components/CmdK";
 import InsightsTable from "./components/InsightsTable";
@@ -63,7 +64,8 @@ export default function MeuGestorDashboard() {
     const [period, setPeriod] = useState<DateRangeValue>({ preset: "last_7d" });
     const [compare, setCompare] = useState(true);
     const [onlyFavorites, setOnlyFavorites] = useState(false);
-    const [onlyIssues, setOnlyIssues] = useState(false);
+    const [accountFilter, setAccountFilter] = useState<'all' | 'active_ads' | 'with_spend' | 'issues'>('all');
+    const [issueFilter, setIssueFilter] = useState<'all' | 'no_ads' | 'inactive' | 'no_delivery' | 'payment'>('all');
 
     // Dados
     const [accounts, setAccounts] = useState<any[]>([]);
@@ -271,15 +273,32 @@ export default function MeuGestorDashboard() {
         let arr = accounts;
         if (onlyFavorites) arr = arr.filter(a => favorites.has(a.id));
         if (currentPage === "favorites") arr = arr.filter(a => favorites.has(a.id));
-        if (onlyIssues) arr = arr.filter(a => Array.isArray(a.issues) && a.issues.length > 0);
+        if (accountFilter === "active_ads") arr = arr.filter(a => a.has_ads_in_period);
+        else if (accountFilter === "with_spend") arr = arr.filter(a => Number(a.spend || 0) > 0);
+        else if (accountFilter === "issues") {
+            arr = arr.filter(a => Array.isArray(a.issues) && a.issues.length > 0);
+            if (issueFilter !== "all") {
+                arr = arr.filter(a => Array.isArray(a.issue_categories) && a.issue_categories.includes(issueFilter));
+            }
+        }
         if (searchTerm) arr = arr.filter(a => (a.name || "").toLowerCase().includes(searchTerm.toLowerCase()));
         return arr;
-    }, [accounts, favorites, onlyFavorites, onlyIssues, currentPage, searchTerm]);
+    }, [accounts, favorites, onlyFavorites, accountFilter, issueFilter, currentPage, searchTerm]);
 
-    const issuesCount = useMemo(
-        () => accounts.filter((a: any) => Array.isArray(a.issues) && a.issues.length > 0).length,
-        [accounts]
-    );
+    const filterCounts = useMemo(() => {
+        const issues = accounts.filter((a: any) => Array.isArray(a.issues) && a.issues.length > 0);
+        const cat = (key: string) => issues.filter((a: any) => Array.isArray(a.issue_categories) && a.issue_categories.includes(key)).length;
+        return {
+            total: accounts.length,
+            active_ads: accounts.filter((a: any) => a.has_ads_in_period).length,
+            with_spend: accounts.filter((a: any) => Number(a.spend || 0) > 0).length,
+            issues: issues.length,
+            no_ads: cat('no_ads'),
+            inactive: cat('inactive'),
+            no_delivery: cat('no_delivery'),
+            payment: cat('payment'),
+        };
+    }, [accounts]);
 
     const totals = useMemo(() => {
         const ts = visibleAccounts.reduce((s, a) => s + a.spend, 0);
@@ -482,8 +501,8 @@ export default function MeuGestorDashboard() {
                                         </h3>
                                         <p style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
                                             {visibleAccounts.length} contas exibidas · {favorites.size} marcadas como cliente
-                                            {issuesCount > 0 && (
-                                                <> · <span style={{ color: "#fbbf24" }}>{issuesCount} com pendência{issuesCount > 1 ? "s" : ""}</span></>
+                                            {filterCounts.issues > 0 && (
+                                                <> · <span style={{ color: "#fbbf24" }}>{filterCounts.issues} com pendência{filterCounts.issues > 1 ? "s" : ""}</span></>
                                             )}
                                         </p>
                                     </div>
@@ -494,10 +513,6 @@ export default function MeuGestorDashboard() {
                                                 <Filter style={{ width: 12, height: 12 }} /> Só clientes
                                             </label>
                                         )}
-                                        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.75rem", color: "rgba(255,255,255,0.7)", cursor: "pointer" }}>
-                                            <input type="checkbox" checked={onlyIssues} onChange={e => setOnlyIssues(e.target.checked)} style={{ accentColor: "#fbbf24" }} />
-                                            <AlertCircle style={{ width: 12, height: 12, color: "#fbbf24" }} /> Com pendências
-                                        </label>
                                         <div style={{ position: "relative" }}>
                                             <Search style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", width: 13, height: 13, color: "rgba(255,255,255,0.35)" }} />
                                             <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Buscar conta..."
@@ -505,6 +520,60 @@ export default function MeuGestorDashboard() {
                                         </div>
                                     </div>
                                 </div>
+                                <div style={{ padding: "0.55rem 1rem", borderBottom: "1px solid var(--glass-border)", display: "flex", gap: "0.4rem", alignItems: "center", flexWrap: "wrap" }}>
+                                    {([
+                                        { key: "all", label: "Todas", count: filterCounts.total, color: "rgba(255,255,255,0.7)" },
+                                        { key: "active_ads", label: "Anúncios ativos", count: filterCounts.active_ads, color: "#34d399" },
+                                        { key: "with_spend", label: "Com gastos", count: filterCounts.with_spend, color: "#748ffc" },
+                                        { key: "issues", label: "Pendências", count: filterCounts.issues, color: "#fbbf24" },
+                                    ] as const).map(chip => {
+                                        const active = accountFilter === chip.key;
+                                        return (
+                                            <button key={chip.key}
+                                                onClick={() => { setAccountFilter(chip.key); if (chip.key !== "issues") setIssueFilter("all"); }}
+                                                style={{
+                                                    display: "inline-flex", alignItems: "center", gap: 5,
+                                                    padding: "0.32rem 0.7rem", borderRadius: 999, fontSize: "0.7rem", fontWeight: 600,
+                                                    background: active ? `${chip.color}22` : "rgba(255,255,255,0.04)",
+                                                    border: `1px solid ${active ? `${chip.color}88` : "rgba(255,255,255,0.08)"}`,
+                                                    color: active ? chip.color : "rgba(255,255,255,0.7)",
+                                                    cursor: "pointer", transition: "all 0.15s",
+                                                }}>
+                                                {chip.label}
+                                                <span style={{ fontSize: "0.62rem", opacity: 0.75 }}>{chip.count}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {accountFilter === "issues" && (
+                                    <div style={{ padding: "0.45rem 1rem 0.55rem", borderBottom: "1px solid var(--glass-border)", display: "flex", gap: "0.35rem", alignItems: "center", flexWrap: "wrap", background: "rgba(251,191,36,0.04)" }}>
+                                        <span style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.4)", marginRight: 4 }}>Tipo de pendência:</span>
+                                        {([
+                                            { key: "all", label: "Todas", count: filterCounts.issues },
+                                            { key: "no_ads", label: "Sem anúncios", count: filterCounts.no_ads },
+                                            { key: "inactive", label: "Conta inativa/bloqueada", count: filterCounts.inactive },
+                                            { key: "no_delivery", label: "Sem veiculação no período", count: filterCounts.no_delivery },
+                                            { key: "payment", label: "Pagamento", count: filterCounts.payment },
+                                        ] as const).map(sub => {
+                                            const active = issueFilter === sub.key;
+                                            const disabled = sub.count === 0 && sub.key !== "all";
+                                            return (
+                                                <button key={sub.key} disabled={disabled} onClick={() => setIssueFilter(sub.key)}
+                                                    style={{
+                                                        display: "inline-flex", alignItems: "center", gap: 4,
+                                                        padding: "0.25rem 0.6rem", borderRadius: 999, fontSize: "0.65rem", fontWeight: 600,
+                                                        background: active ? "rgba(251,191,36,0.18)" : "transparent",
+                                                        border: `1px solid ${active ? "rgba(251,191,36,0.55)" : "rgba(255,255,255,0.08)"}`,
+                                                        color: active ? "#fbbf24" : disabled ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.7)",
+                                                        cursor: disabled ? "not-allowed" : "pointer", transition: "all 0.15s",
+                                                    }}>
+                                                    {sub.label}
+                                                    <span style={{ fontSize: "0.58rem", opacity: 0.7 }}>{sub.count}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                                 <InsightsTable
                                     rows={visibleAccounts}
                                     selectedMetrics={accountMetrics}
@@ -544,6 +613,9 @@ export default function MeuGestorDashboard() {
                         <div className="g-fade-in" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
                             {/* KPIs editáveis da conta */}
                             <KpiGrid ctx="account" row={selectedAccount} selected={accountKpis} onOpenPicker={() => setKpiPickerOpen("account")} />
+
+                            {/* Anúncios ativos compartilháveis */}
+                            <ActiveAdsList accountId={selectedAccountId} />
 
                             {/* Pacing + Cliente Report */}
                             {accountDetail?.daily && accountDetail.daily.length > 0 && (
