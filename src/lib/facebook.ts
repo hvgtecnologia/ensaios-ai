@@ -130,15 +130,81 @@ const DEFAULT_INSIGHT_FIELDS = [
 // CORE: chamada genérica + paginação automática
 // ─────────────────────────────────────────────────────────────
 
+// Códigos de erro Meta que indicam falha transitória (worth retrying):
+//   1   = API unknown / temporary
+//   2   = Service temporarily unavailable
+//   4   = Application request limit reached (rate limit)
+//   17  = User request limit reached
+//   32  = Page request limit reached
+//   341 = Application limit reached
+//   368 = Temporarily blocked for policies violations (não retentar, mas seguro pra rate)
+//   613 = Calls to this api have exceeded the rate limit
+const TRANSIENT_FB_CODES = new Set([1, 2, 4, 17, 32, 341, 613]);
+const MAX_RETRIES = 4;
+const BASE_DELAY_MS = 800;
+
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
 async function fbFetch<T = any>(url: string): Promise<T> {
-    const res: Response = await fetch(url, { cache: 'no-store' });
-    const json: any = await res.json();
-    if (json.error) {
-        const err: any = new Error(json.error.message || 'Erro Meta API');
-        err.fb = json.error;
-        throw err;
+    let lastErr: any;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        let res: Response | undefined;
+        try {
+            res = await fetch(url, { cache: 'no-store' });
+        } catch (netErr: any) {
+            // erro de rede (DNS, timeout, reset). Retentar.
+            lastErr = netErr;
+            if (attempt < MAX_RETRIES) {
+                await sleep(BASE_DELAY_MS * 2 ** attempt + Math.random() * 250);
+                continue;
+            }
+            throw netErr;
+        }
+
+        // 5xx / 429 — sempre retentar
+        if (res.status >= 500 || res.status === 429) {
+            const retryAfter = Number(res.headers.get('retry-after')) || 0;
+            lastErr = new Error(`Meta HTTP ${res.status}${res.status === 429 ? ' (rate limit)' : ''}`);
+            if (attempt < MAX_RETRIES) {
+                const delay = retryAfter > 0
+                    ? retryAfter * 1000
+                    : BASE_DELAY_MS * 2 ** attempt + Math.random() * 250;
+                await sleep(delay);
+                continue;
+            }
+            throw lastErr;
+        }
+
+        // tentar parsear JSON; se vier HTML/texto, tratar como transitório
+        let json: any;
+        try {
+            json = await res.json();
+        } catch {
+            lastErr = new Error(`Meta retornou resposta inválida (HTTP ${res.status})`);
+            if (attempt < MAX_RETRIES) {
+                await sleep(BASE_DELAY_MS * 2 ** attempt + Math.random() * 250);
+                continue;
+            }
+            throw lastErr;
+        }
+
+        if (json.error) {
+            const code = Number(json.error.code);
+            const subcode = Number(json.error.error_subcode);
+            const isTransient = TRANSIENT_FB_CODES.has(code) || subcode === 2446079;
+            const err: any = new Error(json.error.message || 'Erro Meta API');
+            err.fb = json.error;
+            if (isTransient && attempt < MAX_RETRIES) {
+                lastErr = err;
+                await sleep(BASE_DELAY_MS * 2 ** attempt + Math.random() * 250);
+                continue;
+            }
+            throw err;
+        }
+
+        return json;
     }
-    return json;
+    throw lastErr || new Error('Meta API: falha após retries');
 }
 
 async function fbPaginate<T = any>(initialUrl: string): Promise<T[]> {

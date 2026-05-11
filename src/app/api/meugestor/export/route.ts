@@ -170,7 +170,15 @@ export async function GET(request: NextRequest) {
             },
         });
     } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        const fbCode = error?.fb?.code;
+        const transient = fbCode === 1 || fbCode === 2 || fbCode === 4 || fbCode === 17 || fbCode === 32 || fbCode === 613;
+        const friendly = transient
+            ? `Meta API instável/limite de chamadas atingido (${error.message}). Tente novamente em 1-2 minutos, ou exporte um nível menor (Contas em vez de Anúncios) ou período mais curto.`
+            : (error?.message || 'Erro no export');
+        return NextResponse.json(
+            { success: false, error: friendly, fb_code: fbCode ?? null },
+            { status: transient ? 503 : 500 }
+        );
     }
 }
 
