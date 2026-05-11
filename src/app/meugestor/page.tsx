@@ -736,6 +736,10 @@ export default function MeuGestorDashboard() {
                 title={`KPIs — ${kpiPickerOpen === "dashboard" ? "Painel Geral" : kpiPickerOpen === "account" ? "Conta" : kpiPickerOpen === "campaign" ? "Campanha" : "Anúncio"}`}
             />
             <CmdK items={cmdItems} open={cmdkOpen} onClose={() => setCmdkOpen(false)} />
+
+            <footer style={{ textAlign: "center", padding: "1.25rem 1rem", fontSize: "0.72rem", color: "rgba(255,255,255,0.45)", borderTop: "1px solid var(--glass-border)", marginTop: "1.5rem" }}>
+                Hamilton gestor de tráfego e i.a
+            </footer>
         </div>
     );
 }
