@@ -63,6 +63,7 @@ export default function MeuGestorDashboard() {
     const [period, setPeriod] = useState<DateRangeValue>({ preset: "last_7d" });
     const [compare, setCompare] = useState(true);
     const [onlyFavorites, setOnlyFavorites] = useState(false);
+    const [onlyIssues, setOnlyIssues] = useState(false);
 
     // Dados
     const [accounts, setAccounts] = useState<any[]>([]);
@@ -270,9 +271,15 @@ export default function MeuGestorDashboard() {
         let arr = accounts;
         if (onlyFavorites) arr = arr.filter(a => favorites.has(a.id));
         if (currentPage === "favorites") arr = arr.filter(a => favorites.has(a.id));
+        if (onlyIssues) arr = arr.filter(a => Array.isArray(a.issues) && a.issues.length > 0);
         if (searchTerm) arr = arr.filter(a => (a.name || "").toLowerCase().includes(searchTerm.toLowerCase()));
         return arr;
-    }, [accounts, favorites, onlyFavorites, currentPage, searchTerm]);
+    }, [accounts, favorites, onlyFavorites, onlyIssues, currentPage, searchTerm]);
+
+    const issuesCount = useMemo(
+        () => accounts.filter((a: any) => Array.isArray(a.issues) && a.issues.length > 0).length,
+        [accounts]
+    );
 
     const totals = useMemo(() => {
         const ts = visibleAccounts.reduce((s, a) => s + a.spend, 0);
@@ -475,6 +482,9 @@ export default function MeuGestorDashboard() {
                                         </h3>
                                         <p style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
                                             {visibleAccounts.length} contas exibidas · {favorites.size} marcadas como cliente
+                                            {issuesCount > 0 && (
+                                                <> · <span style={{ color: "#fbbf24" }}>{issuesCount} com pendência{issuesCount > 1 ? "s" : ""}</span></>
+                                            )}
                                         </p>
                                     </div>
                                     <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
@@ -484,6 +494,10 @@ export default function MeuGestorDashboard() {
                                                 <Filter style={{ width: 12, height: 12 }} /> Só clientes
                                             </label>
                                         )}
+                                        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.75rem", color: "rgba(255,255,255,0.7)", cursor: "pointer" }}>
+                                            <input type="checkbox" checked={onlyIssues} onChange={e => setOnlyIssues(e.target.checked)} style={{ accentColor: "#fbbf24" }} />
+                                            <AlertCircle style={{ width: 12, height: 12, color: "#fbbf24" }} /> Com pendências
+                                        </label>
                                         <div style={{ position: "relative" }}>
                                             <Search style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", width: 13, height: 13, color: "rgba(255,255,255,0.35)" }} />
                                             <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Buscar conta..."
@@ -500,14 +514,24 @@ export default function MeuGestorDashboard() {
                                     onToggleFavorite={toggleFavorite}
                                     onOpenMetricsPicker={() => setPickerOpen("account")}
                                     extraColumnsLeft={[{
-                                        key: "status", label: "Status", render: (r: any) => (
-                                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                                                <span className={`g-badge ${r.account_status === 1 ? "g-badge-success" : r.account_status === 3 ? "g-badge-danger" : "g-badge-warning"}`} style={{ fontSize: "0.6rem" }}>
-                                                    {r.account_status === 1 ? "Ativa" : r.account_status === 3 ? "Restrita" : "Inativa"}
-                                                </span>
-                                                {r.business_name && <span style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.4)" }}>{r.business_name}</span>}
-                                            </div>
-                                        )
+                                        key: "status", label: "Status", render: (r: any) => {
+                                            const sev = r.severity || (r.account_status === 1 ? "ok" : "warn");
+                                            const badgeClass = sev === "ok" ? "g-badge-success" : sev === "danger" ? "g-badge-danger" : "g-badge-warning";
+                                            const issues: string[] = Array.isArray(r.issues) ? r.issues : [];
+                                            return (
+                                                <div style={{ display: "flex", flexDirection: "column", gap: 2, maxWidth: 240 }}>
+                                                    <span className={`g-badge ${badgeClass}`} style={{ fontSize: "0.6rem" }}>
+                                                        {r.account_status_label || (r.account_status === 1 ? "Ativa" : "Inativa")}
+                                                    </span>
+                                                    {r.business_name && <span style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.4)" }}>{r.business_name}</span>}
+                                                    {issues.length > 0 && (
+                                                        <span title={issues.join(" · ")} style={{ fontSize: "0.58rem", color: sev === "danger" ? "#fca5a5" : "#fbbf24", lineHeight: 1.25, marginTop: 1 }}>
+                                                            {issues.slice(0, 2).join(" · ")}{issues.length > 2 ? ` +${issues.length - 2}` : ""}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            );
+                                        }
                                     }]}
                                     emptyText={onlyFavorites ? "Marque algumas contas como cliente (estrela) para vê-las aqui." : "Nenhuma conta encontrada."}
                                 />

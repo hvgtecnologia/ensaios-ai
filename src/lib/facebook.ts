@@ -47,6 +47,47 @@ export interface MetaAccount {
     amount_spent: string;
     business_name?: string;
     timezone_name?: string;
+    disable_reason?: number;
+    balance?: string;
+    spend_cap?: string;
+    is_prepay_account?: boolean;
+    created_time?: string;
+    age?: number;
+    funding_source_details?: { id?: string; display_string?: string; type?: number };
+    capabilities?: string[];
+}
+
+export const ACCOUNT_STATUS_LABEL: Record<number, string> = {
+    1: 'Ativa',
+    2: 'Desativada',
+    3: 'Pagamento pendente',
+    7: 'Em revisão',
+    8: 'Aguardando pagamento',
+    9: 'Período de tolerância',
+    100: 'Encerramento pendente',
+    101: 'Encerrada',
+    201: 'Qualquer ativa',
+    202: 'Qualquer encerrada',
+};
+
+export const DISABLE_REASON_LABEL: Record<number, string> = {
+    0: '',
+    1: 'Violação política de anúncios',
+    2: 'Em revisão de IP',
+    3: 'Risco de pagamento',
+    4: 'Conta cinza desativada',
+    5: 'Revisão AFC',
+    6: 'Revisão de integridade do negócio',
+    7: 'Fechamento permanente',
+    8: 'Conta de revendedor inativa',
+    9: 'Conta inativa',
+};
+
+export function accountStatusSeverity(status: number, disableReason?: number): 'ok' | 'warn' | 'danger' {
+    if (status === 1) return 'ok';
+    if (status === 9 || status === 7 || status === 8 || status === 3) return 'warn';
+    if (status === 2 || status === 100 || status === 101 || (disableReason && disableReason > 0)) return 'danger';
+    return 'warn';
 }
 
 export interface MetaActionRow { action_type: string; value: string; }
@@ -266,7 +307,12 @@ export async function metaInsights(p: InsightsParams): Promise<MetaInsightRaw[]>
 // ─────────────────────────────────────────────────────────────
 
 export async function getAllAdAccounts(accessToken: string): Promise<MetaAccount[]> {
-    const fields = 'name,account_id,currency,account_status,amount_spent,business_name,timezone_name';
+    const fields = [
+        'name', 'account_id', 'currency', 'account_status', 'amount_spent',
+        'business_name', 'timezone_name', 'disable_reason',
+        'balance', 'spend_cap', 'is_prepay_account', 'created_time', 'age',
+        'funding_source_details', 'capabilities',
+    ].join(',');
     return fbPaginate<MetaAccount>(
         `${FB_GRAPH_URL}/me/adaccounts?fields=${fields}&limit=100&access_token=${accessToken}`
     );

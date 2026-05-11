@@ -3,6 +3,7 @@ import {
     getAllAdAccounts, getAccountInsights,
     flattenInsight, healthScore,
     presetToRange, previousRange, deltaPct,
+    ACCOUNT_STATUS_LABEL, DISABLE_REASON_LABEL, accountStatusSeverity,
     MetaDatePreset, MetaTimeRange,
 } from '@/lib/facebook';
 
@@ -40,27 +41,30 @@ export async function GET(request: NextRequest) {
         const prev = compare ? previousRange(range) : null;
 
         const allAccounts = await getAllAdAccounts(accessToken);
-        const activeAccounts = allAccounts.filter(
-            a => a.account_status === 1 || (a.account_status === 3 && Number(a.amount_spent) > 0)
-        );
 
-        // Paralelismo agressivo: Meta aceita ~25 req simultâneas em conta token user.
-        // Para 15-20 contas, isso vira 1 batch único = ~3-4s vs ~12s antes.
+        // Sem filtro: queremos ver TUDO — ativas, pendentes, encerradas, sem anúncios.
+        // Só buscamos insights de contas que potencialmente têm anúncios (qualquer status
+        // exceto 101=encerrada permanentemente OU lifetime spend > 0).
         const batchSize = 25;
         const enriched: any[] = [];
 
-        for (let i = 0; i < activeAccounts.length; i += batchSize) {
-            const batch = activeAccounts.slice(i, i + batchSize);
+        for (let i = 0; i < allAccounts.length; i += batchSize) {
+            const batch = allAccounts.slice(i, i + batchSize);
             const results = await Promise.allSettled(
                 batch.map(async account => {
-                    const [curr, previous] = await Promise.all([
-                        getAccountInsights(account.id, accessToken, undefined, range),
-                        prev ? getAccountInsights(account.id, accessToken, undefined, prev) : Promise.resolve(null),
-                    ]);
-                    if (!curr && !previous) return null;
+                    const lifetimeSpend = Number(account.amount_spent || 0);
+                    const skipInsights = account.account_status === 101 && lifetimeSpend === 0;
+
+                    const [curr, previous] = skipInsights
+                        ? [null, null]
+                        : await Promise.all([
+                            getAccountInsights(account.id, accessToken, undefined, range).catch(() => null),
+                            prev ? getAccountInsights(account.id, accessToken, undefined, prev).catch(() => null) : Promise.resolve(null),
+                        ]);
+
                     const flat = flattenInsight(curr || {}, account.currency);
                     const flatPrev = previous ? flattenInsight(previous, account.currency) : null;
-                    const health = healthScore(flat);
+                    const health = curr ? healthScore(flat) : { score: 0, reasons: [] };
 
                     const deltas = flatPrev ? {
                         spend: deltaPct(flat.spend, flatPrev.spend),
@@ -76,6 +80,30 @@ export async function GET(request: NextRequest) {
                         messaging_started: deltaPct(flat.messaging_started, flatPrev.messaging_started),
                     } : null;
 
+                    const lifetimeBRL = lifetimeSpend / 100;
+                    const hasAdsInPeriod = !!curr && flat.spend > 0;
+                    const hasAnyAds = lifetimeBRL > 0 || hasAdsInPeriod;
+
+                    const issues: string[] = [];
+                    if (account.account_status !== 1) {
+                        issues.push(ACCOUNT_STATUS_LABEL[account.account_status] || `Status ${account.account_status}`);
+                    }
+                    if (account.disable_reason && account.disable_reason > 0) {
+                        const r = DISABLE_REASON_LABEL[account.disable_reason];
+                        if (r) issues.push(r);
+                    }
+                    if (!hasAnyAds) {
+                        issues.push('Sem anúncios veiculados');
+                    } else if (!hasAdsInPeriod && account.account_status === 1) {
+                        issues.push('Sem veiculação no período');
+                    }
+                    if (account.is_prepay_account && Number(account.balance || 0) === 0 && hasAnyAds) {
+                        issues.push('Saldo pré-pago zerado');
+                    }
+                    if (!account.funding_source_details?.id && hasAnyAds) {
+                        issues.push('Sem fonte de pagamento');
+                    }
+
                     return {
                         ...flat,
                         id: account.id,
@@ -85,7 +113,19 @@ export async function GET(request: NextRequest) {
                         currency: account.currency,
                         timezone: account.timezone_name,
                         account_status: account.account_status,
-                        total_spent_lifetime: Number(account.amount_spent) / 100,
+                        account_status_label: ACCOUNT_STATUS_LABEL[account.account_status] || `Status ${account.account_status}`,
+                        disable_reason: account.disable_reason || 0,
+                        disable_reason_label: DISABLE_REASON_LABEL[account.disable_reason || 0] || '',
+                        severity: accountStatusSeverity(account.account_status, account.disable_reason),
+                        total_spent_lifetime: lifetimeBRL,
+                        balance: Number(account.balance || 0) / 100,
+                        spend_cap: Number(account.spend_cap || 0) / 100,
+                        is_prepay_account: !!account.is_prepay_account,
+                        created_time: account.created_time || null,
+                        funding_source: account.funding_source_details?.display_string || null,
+                        has_any_ads: hasAnyAds,
+                        has_ads_in_period: hasAdsInPeriod,
+                        issues,
                         previous: flatPrev,
                         deltas,
                         health: health.score,
@@ -99,7 +139,11 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        enriched.sort((a, b) => b.spend - a.spend);
+        // ordena: contas com gasto no período primeiro, depois por nome.
+        enriched.sort((a, b) => {
+            if (b.spend !== a.spend) return b.spend - a.spend;
+            return (a.name || '').localeCompare(b.name || '');
+        });
 
         return NextResponse.json({
             success: true,
