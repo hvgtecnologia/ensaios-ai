@@ -763,17 +763,39 @@ export function healthScore(f: FlatInsight): { score: number; reasons: string[] 
 // ─────────────────────────────────────────────────────────────
 
 const ONE_DAY = 86_400_000;
+const DEFAULT_TZ = 'America/Sao_Paulo';
 
 function ymd(d: Date): string {
     return d.toISOString().slice(0, 10);
 }
 
+/** Retorna {y, m, d} de "agora" no fuso indicado (default: Brasília). */
+function dateInTz(tz: string = DEFAULT_TZ, now: Date = new Date()): { y: number; m: number; d: number } {
+    // pt-BR formata como dd/mm/aaaa; uso en-CA que dá aaaa-mm-dd, parsing fácil
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+        timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+    });
+    const parts = fmt.formatToParts(now);
+    const get = (k: string) => Number(parts.find(p => p.type === k)?.value);
+    return { y: get('year'), m: get('month'), d: get('day') };
+}
+
 /**
  * Resolve um preset para o range absoluto [since, until] em YYYY-MM-DD,
- * considerando "hoje" no fuso UTC do servidor.
+ * considerando "hoje" no fuso de Brasília (America/Sao_Paulo) por padrão.
+ *
+ * IMPORTANTE: O Vercel/Node rodam em UTC, então sem essa correção, a partir
+ * das 21h Brasília o servidor já contava o dia seguinte e Meta retornava
+ * vazio em "today".
  */
-export function presetToRange(preset: MetaDatePreset, today = new Date()): MetaTimeRange {
-    const t = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+export function presetToRange(
+    preset: MetaDatePreset,
+    opts?: { timezone?: string; now?: Date },
+): MetaTimeRange {
+    const tz = opts?.timezone || DEFAULT_TZ;
+    const { y, m, d } = dateInTz(tz, opts?.now);
+    // Base UTC midnight nos componentes locais — usado só pra aritmética em dias.
+    const t = new Date(Date.UTC(y, m - 1, d));
     const sub = (n: number) => new Date(t.getTime() - n * ONE_DAY);
 
     switch (preset) {
