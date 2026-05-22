@@ -45,6 +45,7 @@ const PAGES = [
 // ─────────────────────────────────────────────────────────────
 const DEFAULT_ACCOUNT_METRICS = PRESETS["Diagnóstico"];
 const DEFAULT_CAMPAIGN_METRICS = ["spend", "impressions", "ctr", "inline_link_clicks", "cpc", "cpm", "leads", "cpl", "messaging_started", "frequency"];
+const DEFAULT_ADSET_METRICS = ["spend", "impressions", "ctr", "inline_link_clicks", "cpc", "cpm", "leads", "cpl", "messaging_started", "frequency"];
 const DEFAULT_AD_METRICS = ["spend", "impressions", "ctr", "cpc", "leads", "cpl", "messaging_started", "hook_rate", "hold_rate", "frequency"];
 
 interface PeriodMeta { preset?: string; range?: { since: string; until: string }; previous?: { since: string; until: string } | null; }
@@ -57,6 +58,7 @@ export default function MeuGestorDashboard() {
     const [currentPage, setCurrentPage] = useState("dashboard");
     const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
     const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
+    const [selectedAdsetId, setSelectedAdsetId] = useState<string | null>(null);
     const [selectedAdId, setSelectedAdId] = useState<string | null>(null);
 
     // Filtros
@@ -83,16 +85,18 @@ export default function MeuGestorDashboard() {
     const [favorites, setFavorites] = useState<Set<string>>(new Set());
     const [accountMetrics, setAccountMetrics] = useState<string[]>(DEFAULT_ACCOUNT_METRICS);
     const [campaignMetrics, setCampaignMetrics] = useState<string[]>(DEFAULT_CAMPAIGN_METRICS);
+    const [adsetMetrics, setAdsetMetrics] = useState<string[]>(DEFAULT_ADSET_METRICS);
     const [adMetrics, setAdMetrics] = useState<string[]>(DEFAULT_AD_METRICS);
 
-    // KPIs editáveis por contexto (dashboard, account, campaign, ad)
+    // KPIs editáveis por contexto (dashboard, account, campaign, adset, ad)
     const [dashboardKpis, setDashboardKpis] = useState<string[]>(DEFAULT_KPIS.dashboard);
     const [accountKpis, setAccountKpis] = useState<string[]>(DEFAULT_KPIS.account);
     const [campaignKpis, setCampaignKpis] = useState<string[]>(DEFAULT_KPIS.campaign);
+    const [adsetKpis, setAdsetKpis] = useState<string[]>(DEFAULT_KPIS.adset);
     const [adKpis, setAdKpis] = useState<string[]>(DEFAULT_KPIS.ad);
 
     // Modais
-    const [pickerOpen, setPickerOpen] = useState<null | "account" | "campaign" | "ad">(null);
+    const [pickerOpen, setPickerOpen] = useState<null | "account" | "campaign" | "adset" | "ad">(null);
     const [kpiPickerOpen, setKpiPickerOpen] = useState<null | KpiCtx>(null);
     const [cmdkOpen, setCmdkOpen] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -102,10 +106,12 @@ export default function MeuGestorDashboard() {
         setFavorites(new Set(load<string[]>(KEYS.favorites, [])));
         setAccountMetrics(load(KEYS.metricsByLevel + ":account", DEFAULT_ACCOUNT_METRICS));
         setCampaignMetrics(load(KEYS.metricsByLevel + ":campaign", DEFAULT_CAMPAIGN_METRICS));
+        setAdsetMetrics(load(KEYS.metricsByLevel + ":adset", DEFAULT_ADSET_METRICS));
         setAdMetrics(load(KEYS.metricsByLevel + ":ad", DEFAULT_AD_METRICS));
         setDashboardKpis(load("kpis:dashboard", DEFAULT_KPIS.dashboard));
         setAccountKpis(load("kpis:account", DEFAULT_KPIS.account));
         setCampaignKpis(load("kpis:campaign", DEFAULT_KPIS.campaign));
+        setAdsetKpis(load("kpis:adset", DEFAULT_KPIS.adset));
         setAdKpis(load("kpis:ad", DEFAULT_KPIS.ad));
         setPeriod(load(KEYS.period, { preset: "last_7d" }));
         setCompare(load(KEYS.compare, true));
@@ -118,10 +124,12 @@ export default function MeuGestorDashboard() {
     useEffect(() => save(KEYS.favorites, Array.from(favorites)), [favorites]);
     useEffect(() => save(KEYS.metricsByLevel + ":account", accountMetrics), [accountMetrics]);
     useEffect(() => save(KEYS.metricsByLevel + ":campaign", campaignMetrics), [campaignMetrics]);
+    useEffect(() => save(KEYS.metricsByLevel + ":adset", adsetMetrics), [adsetMetrics]);
     useEffect(() => save(KEYS.metricsByLevel + ":ad", adMetrics), [adMetrics]);
     useEffect(() => save("kpis:dashboard", dashboardKpis), [dashboardKpis]);
     useEffect(() => save("kpis:account", accountKpis), [accountKpis]);
     useEffect(() => save("kpis:campaign", campaignKpis), [campaignKpis]);
+    useEffect(() => save("kpis:adset", adsetKpis), [adsetKpis]);
     useEffect(() => save("kpis:ad", adKpis), [adKpis]);
     useEffect(() => save(KEYS.period, period), [period]);
     useEffect(() => save(KEYS.compare, compare), [compare]);
@@ -236,17 +244,24 @@ export default function MeuGestorDashboard() {
     const handleSelectAccount = (id: string) => {
         setSelectedAccountId(id);
         setSelectedCampaignId(null);
+        setSelectedAdsetId(null);
         setSelectedAdId(null);
         setAccountDetail(null);
     };
     const handleSelectCampaign = (id: string) => {
         setSelectedCampaignId(id);
+        setSelectedAdsetId(null);
         setSelectedAdId(null);
         setCampaignDetail(null);
     };
+    const handleSelectAdset = (id: string) => {
+        setSelectedAdsetId(id);
+        setSelectedAdId(null);
+    };
     const handleBack = () => {
         if (selectedAdId) { setSelectedAdId(null); return; }
-        if (selectedCampaignId) { setSelectedCampaignId(null); setCampaignDetail(null); return; }
+        if (selectedAdsetId) { setSelectedAdsetId(null); return; }
+        if (selectedCampaignId) { setSelectedCampaignId(null); setSelectedAdsetId(null); setCampaignDetail(null); return; }
         setSelectedAccountId(null); setAccountDetail(null);
     };
 
@@ -327,6 +342,23 @@ export default function MeuGestorDashboard() {
     // Linha sintética para KPIs do dashboard (totais agregados, com deltas calculados a partir do previous de cada conta)
     const dashboardAggRow = useMemo(() => aggregateRow(visibleAccounts), [visibleAccounts]);
 
+    // Adsets filtrados pela campanha selecionada
+    const campaignAdsets = useMemo(() => {
+        if (!selectedCampaignId || !accountDetail?.adsets) return [];
+        return accountDetail.adsets.filter((a: any) => a.campaign_id === selectedCampaignId);
+    }, [selectedCampaignId, accountDetail]);
+
+    // Ads filtrados pelo adset selecionado
+    const adsetAds = useMemo(() => {
+        if (!selectedAdsetId || !campaignDetail?.ads) return [];
+        return campaignDetail.ads.filter((a: any) => a.adset_id === selectedAdsetId);
+    }, [selectedAdsetId, campaignDetail]);
+
+    const selectedAdset = useMemo(() =>
+        accountDetail?.adsets?.find((a: any) => a.adset_id === selectedAdsetId),
+        [accountDetail, selectedAdsetId]
+    );
+
     const cmdItems: CmdItem[] = useMemo(() => {
         const items: CmdItem[] = [];
         for (const a of accounts) {
@@ -343,8 +375,16 @@ export default function MeuGestorDashboard() {
                 });
             }
         }
-        if (campaignDetail?.ads) {
-            for (const a of campaignDetail.ads) {
+        if (selectedCampaignId && accountDetail?.adsets) {
+            for (const as of accountDetail.adsets.filter((a: any) => a.campaign_id === selectedCampaignId)) {
+                items.push({
+                    id: as.adset_id, title: as.adset_name, subtitle: `${formatCurrency(as.spend)} · ${as.leads || 0} leads`,
+                    type: "campaign", onSelect: () => handleSelectAdset(as.adset_id),
+                });
+            }
+        }
+        if (selectedAdsetId && campaignDetail?.ads) {
+            for (const a of campaignDetail.ads.filter((ad: any) => ad.adset_id === selectedAdsetId)) {
                 items.push({
                     id: a.ad_id, title: a.ad_name, subtitle: `${formatCurrency(a.spend)} · ${a.leads || 0} leads`,
                     type: "ad", onSelect: () => setSelectedAdId(a.ad_id),
@@ -352,7 +392,7 @@ export default function MeuGestorDashboard() {
             }
         }
         return items;
-    }, [accounts, accountDetail, campaignDetail]);
+    }, [accounts, accountDetail, campaignDetail, selectedCampaignId, selectedAdsetId]);
 
     const periodLabel = periodMeta.range
         ? `${periodMeta.range.since} → ${periodMeta.range.until}`
@@ -451,15 +491,16 @@ export default function MeuGestorDashboard() {
                                 <Menu style={{ width: 22, height: 22 }} />
                             </button>
                         )}
-                        {(selectedAccountId || selectedCampaignId || selectedAdId) && (
+                        {(selectedAccountId || selectedCampaignId || selectedAdsetId || selectedAdId) && (
                             <button onClick={handleBack} className="g-btn-secondary" style={{ padding: "0.4rem", display: "inline-flex" }}>
                                 <ChevronLeft style={{ width: 16, height: 16 }} />
                             </button>
                         )}
                         <div>
                             <h1 style={{ fontSize: "1.05rem", fontWeight: 700, color: "white", letterSpacing: "-0.01em" }}>
-                                {selectedAdId ? "Detalhe do Anúncio"
-                                    : selectedCampaignId ? (accountDetail?.campaigns.find((c: any) => c.campaign_id === selectedCampaignId)?.campaign_name || "Anúncios da Campanha")
+                                {selectedAdId ? (campaignDetail?.ads.find((a: any) => a.ad_id === selectedAdId)?.ad_name || "Detalhe do Anúncio")
+                                    : selectedAdsetId ? (selectedAdset?.adset_name || "Conjunto de Anúncios")
+                                    : selectedCampaignId ? (accountDetail?.campaigns.find((c: any) => c.campaign_id === selectedCampaignId)?.campaign_name || "Campanha")
                                     : selectedAccountId ? (selectedAccount?.name || "Conta")
                                     : currentPage === "insights" ? "Insights da Operação"
                                     : currentPage === "favorites" ? "Meus Clientes"
@@ -704,24 +745,29 @@ export default function MeuGestorDashboard() {
                         </div>
                     )}
 
-                    {/* ========== CAMPAIGN DETAIL ========== */}
-                    {selectedAccountId && selectedCampaignId && !selectedAdId && (
+                    {/* ========== CAMPAIGN DETAIL (mostra conjuntos) ========== */}
+                    {selectedAccountId && selectedCampaignId && !selectedAdsetId && !selectedAdId && (
                         <div className="g-fade-in" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-                            {/* KPIs editáveis da campanha (busca o row da campanha em accountDetail) */}
+                            {/* KPIs da campanha */}
                             {(() => {
                                 const camp = accountDetail?.campaigns.find((c: any) => c.campaign_id === selectedCampaignId);
                                 if (!camp) return null;
                                 return <KpiGrid ctx="campaign" row={camp} selected={campaignKpis} onOpenPicker={() => setKpiPickerOpen("campaign")} />;
                             })()}
+
+                            {/* Links compartilháveis da campanha (separados por conjunto) */}
+                            <ActiveAdsList accountId={selectedAccountId} campaignId={selectedCampaignId} />
+
                             {loadingCampaign ? (
                                 <div style={{ display: "flex", justifyContent: "center", padding: "3rem" }}>
                                     <Loader2 className="g-pulse" style={{ width: 28, height: 28, color: "rgba(255,255,255,0.3)" }} />
                                 </div>
-                            ) : campaignDetail && (
+                            ) : (
                                 <>
                                     {/* Breakdowns da campanha */}
                                     <BreakdownsPanel objectId={selectedCampaignId} level="campaign" period={period} />
-                                    {campaignDetail.daily.length > 0 && (
+
+                                    {campaignDetail && campaignDetail.daily.length > 0 && (
                                         <div className="g-glass" style={{ padding: "1.1rem" }}>
                                             <h4 style={{ fontSize: "0.85rem", fontWeight: 700, color: "white", marginBottom: "0.65rem" }}>Performance Diária da Campanha</h4>
                                             <ResponsiveContainer width="100%" height={220}>
@@ -736,33 +782,81 @@ export default function MeuGestorDashboard() {
                                         </div>
                                     )}
 
+                                    {/* Tabela de Conjuntos de Anúncios */}
                                     <div className="g-glass" style={{ overflow: "hidden" }}>
                                         <div style={{ padding: "0.85rem 1rem", borderBottom: "1px solid var(--glass-border)" }}>
                                             <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "white" }}>
                                                 <Hash style={{ width: 14, height: 14, display: "inline", marginRight: 6 }} />
-                                                Anúncios ({campaignDetail.ads.length})
+                                                Conjuntos de Anúncios ({campaignAdsets.length})
                                             </h4>
-                                            <p style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Clique num anúncio para ver o criativo</p>
+                                            <p style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Clique num conjunto para ver os anúncios e métricas detalhadas</p>
                                         </div>
-                                        <InsightsTable
-                                            rows={campaignDetail.ads}
-                                            selectedMetrics={adMetrics}
-                                            nameKey="ad_name" nameLabel="Anúncio" idKey="ad_id"
-                                            onRowClick={r => setSelectedAdId(r.ad_id)}
-                                            onOpenMetricsPicker={() => setPickerOpen("ad")}
-                                            emptyText="Nenhum anúncio com dados no período."
-                                            extraColumnsRight={[{
-                                                key: "status", label: "Ações", render: (r: any) => (
-                                                    <button onClick={() => handleToggleStatus(r.ad_id, r.status || "ACTIVE", "ad")} className="g-btn-secondary"
-                                                        style={{ padding: "0.25rem 0.55rem", fontSize: "0.65rem" }}>
-                                                        {r.status === "PAUSED" ? <span style={{ color: "#34d399" }}>▶ Ativar</span> : <span style={{ color: "#fbbf24" }}>⏸ Pausar</span>}
-                                                    </button>
-                                                )
-                                            }]}
-                                        />
+                                        {campaignAdsets.length === 0 && !loadingCampaign ? (
+                                            <div style={{ padding: "1.5rem", textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: "0.8rem" }}>
+                                                {loadingDetail ? <Loader2 className="g-pulse" style={{ width: 20, height: 20, margin: "0 auto" }} /> : "Nenhum conjunto com dados no período."}
+                                            </div>
+                                        ) : (
+                                            <InsightsTable
+                                                rows={campaignAdsets}
+                                                selectedMetrics={adsetMetrics}
+                                                nameKey="adset_name" nameLabel="Conjunto" idKey="adset_id"
+                                                onRowClick={r => handleSelectAdset(r.adset_id)}
+                                                onOpenMetricsPicker={() => setPickerOpen("adset")}
+                                                emptyText="Nenhum conjunto com dados no período."
+                                            />
+                                        )}
                                     </div>
                                 </>
                             )}
+                        </div>
+                    )}
+
+                    {/* ========== ADSET DETAIL (mostra anúncios do conjunto) ========== */}
+                    {selectedAccountId && selectedCampaignId && selectedAdsetId && !selectedAdId && (
+                        <div className="g-fade-in" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                            {/* KPIs do conjunto */}
+                            {selectedAdset && (
+                                <KpiGrid ctx="adset" row={selectedAdset} selected={adsetKpis} onOpenPicker={() => setKpiPickerOpen("adset")} />
+                            )}
+
+                            {/* Links compartilháveis do conjunto */}
+                            <ActiveAdsList accountId={selectedAccountId} campaignId={selectedCampaignId} adsetId={selectedAdsetId} />
+
+                            {/* Breakdowns do conjunto */}
+                            <BreakdownsPanel objectId={selectedAdsetId} level="adset" period={period} />
+
+                            {/* Tabela de Anúncios do Conjunto */}
+                            <div className="g-glass" style={{ overflow: "hidden" }}>
+                                <div style={{ padding: "0.85rem 1rem", borderBottom: "1px solid var(--glass-border)" }}>
+                                    <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "white" }}>
+                                        <Hash style={{ width: 14, height: 14, display: "inline", marginRight: 6 }} />
+                                        Anúncios deste Conjunto ({adsetAds.length})
+                                    </h4>
+                                    <p style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Clique num anúncio para ver o criativo e métricas</p>
+                                </div>
+                                {loadingCampaign ? (
+                                    <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
+                                        <Loader2 className="g-pulse" style={{ width: 24, height: 24, color: "rgba(255,255,255,0.3)" }} />
+                                    </div>
+                                ) : (
+                                    <InsightsTable
+                                        rows={adsetAds}
+                                        selectedMetrics={adMetrics}
+                                        nameKey="ad_name" nameLabel="Anúncio" idKey="ad_id"
+                                        onRowClick={r => setSelectedAdId(r.ad_id)}
+                                        onOpenMetricsPicker={() => setPickerOpen("ad")}
+                                        emptyText="Nenhum anúncio com dados no período."
+                                        extraColumnsRight={[{
+                                            key: "status", label: "Ações", render: (r: any) => (
+                                                <button onClick={() => handleToggleStatus(r.ad_id, r.status || "ACTIVE", "ad")} className="g-btn-secondary"
+                                                    style={{ padding: "0.25rem 0.55rem", fontSize: "0.65rem" }}>
+                                                    {r.status === "PAUSED" ? <span style={{ color: "#34d399" }}>▶ Ativar</span> : <span style={{ color: "#fbbf24" }}>⏸ Pausar</span>}
+                                                </button>
+                                            )
+                                        }]}
+                                    />
+                                )}
+                            </div>
                         </div>
                     )}
 
@@ -809,13 +903,19 @@ export default function MeuGestorDashboard() {
             <MetricsPicker
                 open={!!pickerOpen}
                 onClose={() => setPickerOpen(null)}
-                selected={pickerOpen === "account" ? accountMetrics : pickerOpen === "campaign" ? campaignMetrics : adMetrics}
+                selected={
+                    pickerOpen === "account" ? accountMetrics :
+                    pickerOpen === "campaign" ? campaignMetrics :
+                    pickerOpen === "adset" ? adsetMetrics :
+                    adMetrics
+                }
                 onChange={(keys) => {
                     if (pickerOpen === "account") setAccountMetrics(keys);
                     else if (pickerOpen === "campaign") setCampaignMetrics(keys);
+                    else if (pickerOpen === "adset") setAdsetMetrics(keys);
                     else if (pickerOpen === "ad") setAdMetrics(keys);
                 }}
-                title={`Métricas — ${pickerOpen === "account" ? "Contas" : pickerOpen === "campaign" ? "Campanhas" : "Anúncios"}`}
+                title={`Métricas — ${pickerOpen === "account" ? "Contas" : pickerOpen === "campaign" ? "Campanhas" : pickerOpen === "adset" ? "Conjuntos" : "Anúncios"}`}
             />
             <KpiPicker
                 open={!!kpiPickerOpen}
@@ -824,15 +924,18 @@ export default function MeuGestorDashboard() {
                 selected={
                     kpiPickerOpen === "dashboard" ? dashboardKpis :
                     kpiPickerOpen === "account" ? accountKpis :
-                    kpiPickerOpen === "campaign" ? campaignKpis : adKpis
+                    kpiPickerOpen === "campaign" ? campaignKpis :
+                    kpiPickerOpen === "adset" ? adsetKpis :
+                    adKpis
                 }
                 onChange={(keys) => {
                     if (kpiPickerOpen === "dashboard") setDashboardKpis(keys);
                     else if (kpiPickerOpen === "account") setAccountKpis(keys);
                     else if (kpiPickerOpen === "campaign") setCampaignKpis(keys);
+                    else if (kpiPickerOpen === "adset") setAdsetKpis(keys);
                     else if (kpiPickerOpen === "ad") setAdKpis(keys);
                 }}
-                title={`KPIs — ${kpiPickerOpen === "dashboard" ? "Painel Geral" : kpiPickerOpen === "account" ? "Conta" : kpiPickerOpen === "campaign" ? "Campanha" : "Anúncio"}`}
+                title={`KPIs — ${kpiPickerOpen === "dashboard" ? "Painel Geral" : kpiPickerOpen === "account" ? "Conta" : kpiPickerOpen === "campaign" ? "Campanha" : kpiPickerOpen === "adset" ? "Conjunto" : "Anúncio"}`}
             />
             <CmdK items={cmdItems} open={cmdkOpen} onClose={() => setCmdkOpen(false)} />
 

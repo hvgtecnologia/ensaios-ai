@@ -543,6 +543,76 @@ export async function getActiveAdsForAccount(
     });
 }
 
+/** Busca anúncios ativos de uma conta, filtrados por campaign_id */
+export async function getActiveAdsForCampaign(
+    campaignId: string,
+    accessToken: string,
+): Promise<ActiveAdLink[]> {
+    const fields = [
+        'id', 'name', 'effective_status', 'status',
+        'campaign_id', 'campaign{name}',
+        'adset_id', 'adset{name}',
+        'creative{id,thumbnail_url,instagram_permalink_url,object_story_id,effective_object_story_id}',
+    ].join(',');
+    const filtering = encodeURIComponent(JSON.stringify([
+        { field: 'effective_status', operator: 'IN', value: ['ACTIVE'] },
+    ]));
+    const url = `${FB_GRAPH_URL}/${campaignId}/ads?fields=${fields}&filtering=${filtering}&limit=200&access_token=${accessToken}`;
+    const ads = await fbPaginate<any>(url);
+    return ads.map(a => {
+        const c = a.creative || {};
+        const fbObjId = c.effective_object_story_id || c.object_story_id;
+        return {
+            ad_id: a.id,
+            ad_name: a.name,
+            effective_status: a.effective_status,
+            campaign_id: a.campaign_id,
+            campaign_name: a.campaign?.name,
+            adset_id: a.adset_id,
+            adset_name: a.adset?.name,
+            thumbnail_url: c.thumbnail_url,
+            instagram_permalink_url: c.instagram_permalink_url,
+            facebook_permalink_url: buildFbPermalink(fbObjId),
+            preview_shareable_link: c.preview_shareable_link,
+        };
+    });
+}
+
+/** Busca anúncios ativos de um conjunto de anúncios (adset) */
+export async function getActiveAdsForAdset(
+    adsetId: string,
+    accessToken: string,
+): Promise<ActiveAdLink[]> {
+    const fields = [
+        'id', 'name', 'effective_status', 'status',
+        'campaign_id', 'campaign{name}',
+        'adset_id', 'adset{name}',
+        'creative{id,thumbnail_url,instagram_permalink_url,object_story_id,effective_object_story_id}',
+    ].join(',');
+    const filtering = encodeURIComponent(JSON.stringify([
+        { field: 'effective_status', operator: 'IN', value: ['ACTIVE'] },
+    ]));
+    const url = `${FB_GRAPH_URL}/${adsetId}/ads?fields=${fields}&filtering=${filtering}&limit=200&access_token=${accessToken}`;
+    const ads = await fbPaginate<any>(url);
+    return ads.map(a => {
+        const c = a.creative || {};
+        const fbObjId = c.effective_object_story_id || c.object_story_id;
+        return {
+            ad_id: a.id,
+            ad_name: a.name,
+            effective_status: a.effective_status,
+            campaign_id: a.campaign_id,
+            campaign_name: a.campaign?.name,
+            adset_id: a.adset_id,
+            adset_name: a.adset?.name,
+            thumbnail_url: c.thumbnail_url,
+            instagram_permalink_url: c.instagram_permalink_url,
+            facebook_permalink_url: buildFbPermalink(fbObjId),
+            preview_shareable_link: c.preview_shareable_link,
+        };
+    });
+}
+
 // ─────────────────────────────────────────────────────────────
 // HELPERS DE EXTRAÇÃO
 // ─────────────────────────────────────────────────────────────

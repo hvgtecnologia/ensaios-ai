@@ -9,7 +9,8 @@ import {
 } from "lucide-react";
 import { METRIC_BY_KEY } from "./metrics";
 
-export type KpiCtx = "dashboard" | "account" | "campaign" | "ad";
+export type KpiCtx = "dashboard" | "account" | "campaign" | "adset" | "ad";
+
 export type KpiColor = "blue" | "green" | "yellow" | "red" | "purple";
 
 export interface KpiDef {
@@ -23,55 +24,56 @@ export interface KpiDef {
 
 export const KPI_CATALOG: KpiDef[] = [
     // ── Investimento / Alcance
-    { id: "spend", metricKey: "spend", icon: DollarSign, color: "blue", contexts: ["dashboard", "account", "campaign", "ad"] },
-    { id: "reach", metricKey: "reach", icon: Globe, color: "blue", subMetric: "frequency", contexts: ["dashboard", "account", "campaign", "ad"] },
-    { id: "impressions", metricKey: "impressions", icon: Eye, color: "blue", contexts: ["dashboard", "account", "campaign", "ad"] },
-    { id: "frequency", metricKey: "frequency", icon: Gauge, color: "yellow", contexts: ["account", "campaign", "ad"] },
+    { id: "spend", metricKey: "spend", icon: DollarSign, color: "blue", contexts: ["dashboard", "account", "campaign", "adset", "ad"] },
+    { id: "reach", metricKey: "reach", icon: Globe, color: "blue", subMetric: "frequency", contexts: ["dashboard", "account", "campaign", "adset", "ad"] },
+    { id: "impressions", metricKey: "impressions", icon: Eye, color: "blue", contexts: ["dashboard", "account", "campaign", "adset", "ad"] },
+    { id: "frequency", metricKey: "frequency", icon: Gauge, color: "yellow", contexts: ["account", "campaign", "adset", "ad"] },
 
     // ── Engajamento
-    { id: "clicks", metricKey: "clicks", icon: MousePointerClick, color: "yellow", subMetric: "cpc", contexts: ["dashboard", "account", "campaign", "ad"] },
-    { id: "inline_link_clicks", metricKey: "inline_link_clicks", icon: MousePointerClick, color: "yellow", subMetric: "cost_per_inline_link_click", contexts: ["dashboard", "account", "campaign", "ad"] },
-    { id: "ctr", metricKey: "ctr", icon: Target, color: "green", subMetric: "impressions", contexts: ["dashboard", "account", "campaign", "ad"] },
-    { id: "inline_link_click_ctr", metricKey: "inline_link_click_ctr", icon: Target, color: "green", contexts: ["dashboard", "account", "campaign", "ad"] },
-    { id: "post_engagement", metricKey: "post_engagement", icon: Activity, color: "purple", contexts: ["account", "campaign", "ad"] },
-    { id: "post_save", metricKey: "post_save", icon: Activity, color: "purple", contexts: ["account", "campaign", "ad"] },
+    { id: "clicks", metricKey: "clicks", icon: MousePointerClick, color: "yellow", subMetric: "cpc", contexts: ["dashboard", "account", "campaign", "adset", "ad"] },
+    { id: "inline_link_clicks", metricKey: "inline_link_clicks", icon: MousePointerClick, color: "yellow", subMetric: "cost_per_inline_link_click", contexts: ["dashboard", "account", "campaign", "adset", "ad"] },
+    { id: "ctr", metricKey: "ctr", icon: Target, color: "green", subMetric: "impressions", contexts: ["dashboard", "account", "campaign", "adset", "ad"] },
+    { id: "inline_link_click_ctr", metricKey: "inline_link_click_ctr", icon: Target, color: "green", contexts: ["dashboard", "account", "campaign", "adset", "ad"] },
+    { id: "post_engagement", metricKey: "post_engagement", icon: Activity, color: "purple", contexts: ["account", "campaign", "adset", "ad"] },
+    { id: "post_save", metricKey: "post_save", icon: Activity, color: "purple", contexts: ["account", "campaign", "adset", "ad"] },
 
     // ── Custo
-    { id: "cpc", metricKey: "cpc", icon: DollarSign, color: "yellow", contexts: ["dashboard", "account", "campaign", "ad"] },
-    { id: "cost_per_inline_link_click", metricKey: "cost_per_inline_link_click", icon: DollarSign, color: "yellow", contexts: ["dashboard", "account", "campaign", "ad"] },
-    { id: "cpm", metricKey: "cpm", icon: Eye, color: "yellow", contexts: ["dashboard", "account", "campaign", "ad"] },
-    { id: "cpp", metricKey: "cpp", icon: Eye, color: "yellow", contexts: ["account", "campaign", "ad"] },
+    { id: "cpc", metricKey: "cpc", icon: DollarSign, color: "yellow", contexts: ["dashboard", "account", "campaign", "adset", "ad"] },
+    { id: "cost_per_inline_link_click", metricKey: "cost_per_inline_link_click", icon: DollarSign, color: "yellow", contexts: ["dashboard", "account", "campaign", "adset", "ad"] },
+    { id: "cpm", metricKey: "cpm", icon: Eye, color: "yellow", contexts: ["dashboard", "account", "campaign", "adset", "ad"] },
+    { id: "cpp", metricKey: "cpp", icon: Eye, color: "yellow", contexts: ["account", "campaign", "adset", "ad"] },
 
     // ── Conversão
-    { id: "leads", metricKey: "leads", icon: Users, color: "green", subMetric: "cpl", contexts: ["dashboard", "account", "campaign", "ad"] },
-    { id: "cpl", metricKey: "cpl", icon: DollarSign, color: "green", contexts: ["account", "campaign", "ad"] },
-    { id: "purchases", metricKey: "purchases", icon: ShoppingCart, color: "green", subMetric: "cpa_purchase", contexts: ["dashboard", "account", "campaign", "ad"] },
-    { id: "purchase_value", metricKey: "purchase_value", icon: Wallet, color: "green", contexts: ["dashboard", "account", "campaign", "ad"] },
-    { id: "roas", metricKey: "roas", icon: Wallet, color: "blue", contexts: ["dashboard", "account", "campaign", "ad"] },
-    { id: "conversion_rate", metricKey: "conversion_rate", icon: Target, color: "green", contexts: ["account", "campaign", "ad"] },
-    { id: "messaging_started", metricKey: "messaging_started", icon: Activity, color: "purple", subMetric: "cpa_messaging", contexts: ["dashboard", "account", "campaign", "ad"] },
-    { id: "cpa_messaging", metricKey: "cpa_messaging", icon: Activity, color: "purple", contexts: ["account", "campaign", "ad"] },
-    { id: "add_to_cart", metricKey: "add_to_cart", icon: ShoppingCart, color: "green", contexts: ["account", "campaign", "ad"] },
-    { id: "initiate_checkout", metricKey: "initiate_checkout", icon: ShoppingCart, color: "green", contexts: ["account", "campaign", "ad"] },
-    { id: "landing_page_views", metricKey: "landing_page_views", icon: Layers, color: "green", subMetric: "cpa_landing", contexts: ["account", "campaign", "ad"] },
-    { id: "complete_registration", metricKey: "complete_registration", icon: Users, color: "green", contexts: ["account", "campaign", "ad"] },
-    { id: "contact", metricKey: "contact", icon: Users, color: "green", contexts: ["account", "campaign", "ad"] },
+    { id: "leads", metricKey: "leads", icon: Users, color: "green", subMetric: "cpl", contexts: ["dashboard", "account", "campaign", "adset", "ad"] },
+    { id: "cpl", metricKey: "cpl", icon: DollarSign, color: "green", contexts: ["account", "campaign", "adset", "ad"] },
+    { id: "purchases", metricKey: "purchases", icon: ShoppingCart, color: "green", subMetric: "cpa_purchase", contexts: ["dashboard", "account", "campaign", "adset", "ad"] },
+    { id: "purchase_value", metricKey: "purchase_value", icon: Wallet, color: "green", contexts: ["dashboard", "account", "campaign", "adset", "ad"] },
+    { id: "roas", metricKey: "roas", icon: Wallet, color: "blue", contexts: ["dashboard", "account", "campaign", "adset", "ad"] },
+    { id: "conversion_rate", metricKey: "conversion_rate", icon: Target, color: "green", contexts: ["account", "campaign", "adset", "ad"] },
+    { id: "messaging_started", metricKey: "messaging_started", icon: Activity, color: "purple", subMetric: "cpa_messaging", contexts: ["dashboard", "account", "campaign", "adset", "ad"] },
+    { id: "cpa_messaging", metricKey: "cpa_messaging", icon: Activity, color: "purple", contexts: ["account", "campaign", "adset", "ad"] },
+    { id: "add_to_cart", metricKey: "add_to_cart", icon: ShoppingCart, color: "green", contexts: ["account", "campaign", "adset", "ad"] },
+    { id: "initiate_checkout", metricKey: "initiate_checkout", icon: ShoppingCart, color: "green", contexts: ["account", "campaign", "adset", "ad"] },
+    { id: "landing_page_views", metricKey: "landing_page_views", icon: Layers, color: "green", subMetric: "cpa_landing", contexts: ["account", "campaign", "adset", "ad"] },
+    { id: "complete_registration", metricKey: "complete_registration", icon: Users, color: "green", contexts: ["account", "campaign", "adset", "ad"] },
+    { id: "contact", metricKey: "contact", icon: Users, color: "green", contexts: ["account", "campaign", "adset", "ad"] },
 
     // ── Vídeo
-    { id: "video_3s", metricKey: "video_3s", icon: Film, color: "purple", subMetric: "hook_rate", contexts: ["account", "campaign", "ad"] },
-    { id: "hook_rate", metricKey: "hook_rate", icon: Film, color: "purple", contexts: ["account", "campaign", "ad"] },
-    { id: "hold_rate", metricKey: "hold_rate", icon: Film, color: "purple", contexts: ["account", "campaign", "ad"] },
-    { id: "thruplay", metricKey: "thruplay", icon: Film, color: "purple", subMetric: "cost_per_thruplay", contexts: ["account", "campaign", "ad"] },
-    { id: "video_avg_time", metricKey: "video_avg_time", icon: Film, color: "purple", contexts: ["account", "campaign", "ad"] },
-    { id: "view_rate_50", metricKey: "view_rate_50", icon: Film, color: "purple", contexts: ["account", "campaign", "ad"] },
-    { id: "view_rate_100", metricKey: "view_rate_100", icon: Film, color: "purple", contexts: ["account", "campaign", "ad"] },
+    { id: "video_3s", metricKey: "video_3s", icon: Film, color: "purple", subMetric: "hook_rate", contexts: ["account", "campaign", "adset", "ad"] },
+    { id: "hook_rate", metricKey: "hook_rate", icon: Film, color: "purple", contexts: ["account", "campaign", "adset", "ad"] },
+    { id: "hold_rate", metricKey: "hold_rate", icon: Film, color: "purple", contexts: ["account", "campaign", "adset", "ad"] },
+    { id: "thruplay", metricKey: "thruplay", icon: Film, color: "purple", subMetric: "cost_per_thruplay", contexts: ["account", "campaign", "adset", "ad"] },
+    { id: "video_avg_time", metricKey: "video_avg_time", icon: Film, color: "purple", contexts: ["account", "campaign", "adset", "ad"] },
+    { id: "view_rate_50", metricKey: "view_rate_50", icon: Film, color: "purple", contexts: ["account", "campaign", "adset", "ad"] },
+    { id: "view_rate_100", metricKey: "view_rate_100", icon: Film, color: "purple", contexts: ["account", "campaign", "adset", "ad"] },
 
     // ── Qualidade
-    { id: "health", metricKey: "health", icon: Heart, color: "green", contexts: ["account", "campaign", "ad"] },
-    { id: "quality_ranking", metricKey: "quality_ranking", icon: Award, color: "yellow", contexts: ["account", "campaign", "ad"] },
-    { id: "engagement_rate_ranking", metricKey: "engagement_rate_ranking", icon: Award, color: "yellow", contexts: ["account", "campaign", "ad"] },
-    { id: "conversion_rate_ranking", metricKey: "conversion_rate_ranking", icon: Award, color: "yellow", contexts: ["account", "campaign", "ad"] },
+    { id: "health", metricKey: "health", icon: Heart, color: "green", contexts: ["account", "campaign", "adset", "ad"] },
+    { id: "quality_ranking", metricKey: "quality_ranking", icon: Award, color: "yellow", contexts: ["account", "campaign", "adset", "ad"] },
+    { id: "engagement_rate_ranking", metricKey: "engagement_rate_ranking", icon: Award, color: "yellow", contexts: ["account", "campaign", "adset", "ad"] },
+    { id: "conversion_rate_ranking", metricKey: "conversion_rate_ranking", icon: Award, color: "yellow", contexts: ["account", "campaign", "adset", "ad"] },
 ];
+
 
 export const KPI_BY_ID: Record<string, KpiDef> = KPI_CATALOG.reduce((acc, k) => { acc[k.id] = k; return acc; }, {} as Record<string, KpiDef>);
 
@@ -79,8 +81,10 @@ export const DEFAULT_KPIS: Record<KpiCtx, string[]> = {
     dashboard: ["spend", "clicks", "ctr", "leads", "messaging_started", "roas"],
     account: ["spend", "inline_link_click_ctr", "cost_per_inline_link_click", "cpm", "leads", "messaging_started", "roas", "health"],
     campaign: ["spend", "ctr", "cost_per_inline_link_click", "cpm", "leads", "messaging_started", "frequency", "health"],
+    adset: ["spend", "ctr", "cpc", "cpm", "leads", "messaging_started", "frequency", "health"],
     ad: ["spend", "ctr", "cpc", "hook_rate", "hold_rate", "frequency", "leads", "health"],
 };
+
 
 /**
  * Constrói um "row sintético" agregando várias contas — útil pra usar o KpiGrid no dashboard.

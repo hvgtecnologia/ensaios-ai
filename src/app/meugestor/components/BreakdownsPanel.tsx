@@ -29,7 +29,7 @@ const METRICS = [
 
 interface Props {
     objectId: string;
-    level?: "account" | "campaign" | "ad";
+    level?: "account" | "campaign" | "adset" | "ad";
     period: { preset?: string; since?: string; until?: string };
 }
 
@@ -73,7 +73,7 @@ export default function BreakdownsPanel({ objectId, level = "account", period }:
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem", flexWrap: "wrap" }}>
                 <Layers style={{ width: 16, height: 16, color: "#a78bfa" }} />
                 <h4 style={{ fontSize: "0.85rem", fontWeight: 700, color: "white" }}>
-                    Análise por Segmento {level !== "account" && <span style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.4)", fontWeight: 500, marginLeft: 4 }}>({level === "campaign" ? "campanha" : "anúncio"})</span>}
+                    Análise por Segmento {level !== "account" && <span style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.4)", fontWeight: 500, marginLeft: 4 }}>({level === "campaign" ? "campanha" : level === "adset" ? "conjunto" : "anúncio"})</span>}
                 </h4>
                 <div style={{ marginLeft: "auto", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                     <select value={dim} onChange={e => setDim(e.target.value)}

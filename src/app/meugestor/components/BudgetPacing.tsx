@@ -9,19 +9,16 @@ interface Props {
 }
 
 /**
- * Pacing de orçamento: dado o gasto diário, projeta o gasto até fim do mês
- * (média do gasto diário × dias restantes + gasto realizado).
+ * Pacing de orçamento: dado o gasto diário, projeta o gasto mensal
+ * usando a média diária × 30 (independente do período selecionado).
  */
 export default function BudgetPacing({ daily, monthlyTarget }: Props) {
     if (!daily?.length) return null;
 
     const totalSpent = daily.reduce((s, d) => s + d.spend, 0);
     const avgDaily = totalSpent / daily.length;
-    const today = new Date();
-    const daysInMonth = new Date(today.getUTCFullYear(), today.getUTCMonth() + 1, 0).getUTCDate();
-    const dayOfMonth = today.getUTCDate();
-    const remainingDays = Math.max(0, daysInMonth - dayOfMonth);
-    const projection = totalSpent + avgDaily * remainingDays;
+    // Projeção do mês = média diária × 30
+    const projection = avgDaily * 30;
 
     let progressPct = 0;
     let projVsTarget: number | null = null;
@@ -68,8 +65,9 @@ export default function BudgetPacing({ daily, monthlyTarget }: Props) {
                 </div>
             )}
             <p style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.3)", marginTop: "0.5rem" }}>
-                Baseado em {daily.length} dias · faltam {remainingDays} dias do mês
+                Baseado em {daily.length} dias · média {formatCurrency(avgDaily)}/dia × 30 dias
             </p>
         </div>
     );
 }
+
